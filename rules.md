@@ -58,7 +58,7 @@ Arena Dimensions: **1000 × 1000** for FFA and **800 × 800** for duels.[**](#su
 
 #### Deadline
 - A Google Form will be sent to the ISE group chat and by email when the rules are published.
-- The deadline is **11:59 pm on Friday 11th December** (end of Week 5).
+- The deadline is **11:59 pm on Friday 4th December** (end of Week 5).
 - There is **no grace period** and *usually* no exceptions for being late.
 - A reminder email with the form will be sent on the day of the deadline.
 
@@ -77,7 +77,7 @@ On the form, you must enter your:
 
 #### After the Deadline
 - Submissions will be checked for entries that don't follow the guidelines.
-- If there are any issues with your code, you will be notified and given a chance to resubmit by **11:59 pm on Sunday 13th December**. [**](#subject-to-change)
+- If there are any issues with your code, you will be notified and given a chance to resubmit by **11:59 pm on Sunday 6th December**. [**](#subject-to-change)
 - A resubmission must contain **only the fix**. Anything else **won't be accepted**.
 - A robot that still fails to compile after resubmission is **disqualified**.
 
