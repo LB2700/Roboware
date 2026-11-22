@@ -36,7 +36,7 @@ public final class ScheduledBattle {
         this.participants = List.copyOf(entries);
         this.settings = Objects.requireNonNull(settings);
         this.initialSetups = List.copyOf(initialSetups);
-        if (participants.isEmpty() || participants.stream().anyMatch(entry -> entry.id.isBlank())) {
+        if (participants.isEmpty() || participants.stream().anyMatch(entry -> entry.getRobotName().isBlank())) {
             throw new IllegalArgumentException("A scheduled battle needs non-empty robot identifiers");
         }
         if (!initialSetups.isEmpty() && initialSetups.size() != participants.size()) {
@@ -57,7 +57,7 @@ public final class ScheduledBattle {
     }
 
     public List<String> entries() {
-        return participants.stream().map(entry -> entry.id).toList();
+        return participants.stream().map(Entry::getRobotName).toList();
     }
 
     public Settings settings() {

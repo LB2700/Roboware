@@ -36,7 +36,7 @@ class LeagueJsonTests {
                 exportedSettings.getBoolean("visible")));
         assertEquals(2, json.getJsonArray("entries").size());
         var entry = json.getJsonArray("entries").getJsonObject(0);
-        assertEquals("sample.Fire", entry.getString("id"));
+        assertEquals("sample.Fire", entry.getString("robotName"));
         assertEquals(0, entry.getInt("index"));
         assertEquals(1, entry.getInt("gamesScheduled"));
         assertEquals(Json.createObjectBuilder()
@@ -67,7 +67,7 @@ class LeagueJsonTests {
         for (int i = 0; i < indices.size(); i++) {
             assertEquals(participants.get(i).getIndex(), indices.getInt(i));
             assertEquals(game.getJsonArray("entries").getString(i),
-                    entries.getJsonObject(indices.getInt(i)).getString("id"));
+                    entries.getJsonObject(indices.getInt(i)).getString("robotName"));
         }
     }
 
@@ -78,10 +78,10 @@ class LeagueJsonTests {
         try (var reader = Json.createReader(new StringReader(entry.toJson()))) {
             var json = reader.readObject();
             assertEquals(entry.toJsonObject(), json);
-            assertEquals(entry.id, json.getString("id"));
+            assertEquals(entry.getRobotName(), json.getString("robotName"));
             assertEquals(7, json.getInt("index"));
             assertEquals(3, json.getInt("gamesScheduled"));
-            assertEquals(entry.id, json.getJsonObject("stats").getString("teamLeaderName"));
+            assertEquals(entry.getRobotName(), json.getJsonObject("stats").getString("teamLeaderName"));
             assertEquals(0, json.getJsonObject("stats").getInt("score"));
         }
     }
