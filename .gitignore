@@ -1,11 +1,5 @@
 HELP.md
-.gradle
-build/
-!gradle/wrapper/gradle-wrapper.jar
-!**/src/main/**/build/
-!**/src/test/**/build/
 
-### STS ###
 .apt_generated
 .classpath
 .factorypath
@@ -17,24 +11,35 @@ bin/
 !**/src/main/**/bin/
 !**/src/test/**/bin/
 
-### IntelliJ IDEA ###
-.idea
+.
 *.iws
 *.iml
 *.ipr
-out/
+
+
+# Build
+out/ms
 !**/src/main/**/out/
 !**/src/test/**/out/
-
-### NetBeans ###
 /nbproject/private/
 /nbbuild/
 /dist/
 /nbdist/
 /.nb-gradle/
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
 
-### VS Code ###
-.vscode/
+# Logs
+logs/*.log
 
 # AI
 skills/
+
+# IDEs
+.vscode/
+idea
+.zed/
+

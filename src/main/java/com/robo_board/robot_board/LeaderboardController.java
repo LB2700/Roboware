@@ -1,63 +1,38 @@
 package com.robo_board.robot_board;
 
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import com.robo_board.robot_board.competition.CompetitionService;
+import com.robo_board.robot_board.competition.LeagueService;
+import com.robo_board.robot_board.competition.TournamentService;
 
 @RestController
 @RequestMapping("/api")
 @CrossOrigin
 public class LeaderboardController {
 
-    private final LeaderboardService leaderboardService;
-    private final CompetitionService competitionService;
-    private final AtomicBoolean battleRunning = new AtomicBoolean(false);
+    private final LeagueService leagueService;
+    private final TournamentService tournamentService;
 
-    public LeaderboardController(LeaderboardService leaderboardService, CompetitionService competitionService) {
-        this.leaderboardService = leaderboardService;
-        this.competitionService = competitionService;
+    public LeaderboardController(LeagueService leagueService,
+            TournamentService tournamentService) {
+        this.leagueService = leagueService;
+        this.tournamentService = tournamentService;
     }
 
-    // Spectators / Web page fetch the current rankings here
-    @GetMapping("/leaderboard")
-    public List<Map.Entry<String, Integer>> getLeaderboard() {
-        return leaderboardService.getStandings();
+    @PostMapping("/league/start")
+    public String startLeague() {
+        leagueService.runCompetition();
+        return "League finished.";
     }
 
-    @PostMapping("/competition/start")
-    public String startCompetition() {
-        competitionService.runCompetition();
-        return "Competition started.";
-    }
-
-    // You or the admin can start a game directly from an admin panel or curl
-    @PostMapping("/battle/start")
-    public String startBattle(
-        @RequestParam(
-            defaultValue = "sample.RamFire, sample.Corners, sample.Crazy, sample.Tracker"
-        ) String robots,
-        @RequestParam(defaultValue = "3") int rounds
-    ) {
-        if (!battleRunning.compareAndSet(false, true)) {
-            return "A battle is already running!";
+    @PostMapping("/brackets/start")
+    public String startBrackets() {
+        if (leagueService.getLastLeague() == null) {
+            return "No league has been run yet. Start a league first via /api/league/start.";
         }
-
-        new Thread(() -> {
-            try {
-                BattleRunner runner = new BattleRunner(leaderboardService, robots, rounds);
-                runner.run();
-            } finally {
-                battleRunning.set(false);
-            }
-        }).start();
-
-        return "Battle started on screen!";
+        tournamentService.runTournament(leagueService.getLastLeague());
+        return "Tournament brackets finished.";
     }
 }

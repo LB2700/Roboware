@@ -3,9 +3,16 @@ const source = new EventSource("/events");
 
 source.addEventListener("update-competition", event => {
     const competitionData = JSON.parse(event.data);
-    const entries = competitionData.entries.sort((a, b) => a.stats.score - b.stats.score);
-    
-    console.log("Entry List",entries);
+    const entries = competitionData.entries.sort((a, b) => b.stats.score - a.stats.score);
+
+    console.log("League Entry List", entries);
+});
+
+source.addEventListener("update-tournament", (event) => {
+    const tournamentData = JSON.parse(event.data);
+    const entries = tournamentData.entries.sort((a, b) => b.stats.score - a.stats.score);
+
+    console.log("Tournament Entry List", entries);
 });
 
 source.onmessage = event => {
