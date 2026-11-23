@@ -16,21 +16,25 @@ import robocode.BattleResults;
 
 public class League {
 
-    private static final ArrayList<String> SAMPLE_ENTRANTS = new ArrayList<String>(List.of( 
+    // These are only for testing purposes.
+    public static final List<String> SAMPLE_ENTRANTS = List.of(
         "sample.Corners",
-        "sample.Fire",
-        "sample.SpinBot",
-        "sample.SittingDuck",
         "sample.Crazy",
+        "sample.Fire",
+        "sample.Interactive",
+        "sample.Interactive_v2",
+        "sample.MyFirstJuniorRobot",
         "sample.MyFirstRobot",
         "sample.PaintingRobot",
         "sample.RamFire",
-        "sample.Tracker",
+        "sample.SittingDuck",
+        "sample.SpinBot",
         "sample.Target",
+        "sample.Tracker",
         "sample.TrackFire",
         "sample.VelociRobot",
-        "sample.VelociRobot"
-    ));
+        "sample.Walls"
+    );
     
     private ArrayList<Entry> entries;
     private ArrayList<ScheduledBattle> games;
@@ -305,11 +309,24 @@ public class League {
        }
     }
 
+   public List<Entry> getTopEntries(int count) {
+       List<Entry> sortedEntries = new ArrayList<>(entries);
+       sortedEntries.sort((first, second) -> Integer.compare(
+               second.getStats().getScore(),
+               first.getStats().getScore()));
+       return sortedEntries.subList(0, Math.min(count, sortedEntries.size()));
+   }
+
+   public List<Entry> getTopEntries() {
+       List<Entry> sortedEntries = new ArrayList<>(entries);
+       sortedEntries.sort((first, second) -> Integer.compare(
+               second.getStats().getScore(),
+               first.getStats().getScore()));
+       return sortedEntries;
+   }
+
     public void showStatsTable() {
-        List<Entry> sortedEntries = new ArrayList<>(entries);
-        sortedEntries.sort((first, second) -> Integer.compare(
-                second.getStats().getScore(),
-                first.getStats().getScore()));
+        List<Entry> sortedEntries = getTopEntries();
 
         System.out.printf("%-30s %10s %10s %18s %20s %15s %20s %15s %8s %8s %8s%n",
                 "Robot Name", "Score", "Survival", "Last survivor bonus",
@@ -347,6 +364,12 @@ class Entry {
         // use BattleResults to record an entries stats accross the league, despite the class name indicating 
         // this be the results for one singular battle.
         stats = new BattleResults(id, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    }
+
+    /** Creates a copy with the same identity but zeroed stats, used to start the playoffs fresh. */
+    public Entry(Entry other) {
+        this(other.id, other.index);
+        this.gamesScheduled = other.gamesScheduled;
     }
 
 
@@ -452,6 +475,10 @@ class Entry {
                 battleResults.getSeconds() + stats.getSeconds(),
                 battleResults.getThirds() + stats.getThirds()
         );
+    }
+
+    public int getScore() {
+        return stats.getScore();
     }
 
     public void showStats() {

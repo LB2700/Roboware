@@ -1,42 +1,28 @@
 package com.robo_board.robot_board.competition;
 
-import org.springframework.stereotype.Service;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.stereotype.Service;
-
-import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
-
+import org.springframework.context.ApplicationEventPublisher;
 import com.robo_board.robot_board.events.CompetitionEvent;
 
 import javax.json.JsonObject;
 
+/**
+ * Base class for competition services. Holds shared state such as the event publisher and the
+ * running flag, and provides a helper to build the update callback used by drivers.
+ */
+public abstract class CompetitionService {
 
-@Service
-public class CompetitionService {
-    private final AtomicBoolean competitionRunning = new AtomicBoolean(false);
+    protected final AtomicBoolean competitionRunning = new AtomicBoolean(false);
+    protected final ApplicationEventPublisher eventPublisher;
 
-    private final ApplicationEventPublisher eventPublisher;
-    
     public CompetitionService(ApplicationEventPublisher eventPublisher) {
         this.eventPublisher = eventPublisher;
     }
 
-    public void runCompetition() {
-
-        System.out.printf("Running competition... %n");
-
-        CompetitionDriver competition = new CompetitionDriver(CompetitionDriver.SAMPLE_ENTRANTS,
-                Path.of("robocode").toAbsolutePath().normalize());
-
-        competition.setOnBattleCompleted((JsonObject competitionData) -> {
-            //System.out.printf("from cop service: %s %n", competitionData);
-            eventPublisher.publishEvent(
-                new CompetitionEvent("update-competition", competitionData)
-            );
-        });
-
-        competition.start();
+    protected Consumer<JsonObject> createEventPublisherCallback(String eventName) {
+        return (JsonObject competitionData) -> {
+            eventPublisher.publishEvent(new CompetitionEvent(eventName, competitionData));
+        };
     }
 }
