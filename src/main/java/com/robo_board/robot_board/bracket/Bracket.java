@@ -1,6 +1,5 @@
 package com.robo_board.robot_board.bracket;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class Bracket {
@@ -85,7 +84,7 @@ public class Bracket {
     private void updateReadyMatches() {
         // Implement the logic to update the status of matches that are ready to be played
         for (BracketMatch match : matches) {
-            if (match.getSlot1().hasRobot() && match.getSlot2().hasRobot() && match.getMatchStatus() == MatchStatus.NOT_READY) {
+            if (match.getSlot1().hasRobot() && match.getSlot2().hasRobot() && match.getMatchStatus() == MatchStatus.NOT_STARTED) {
                 match.setMatchStatus(MatchStatus.READY);
             }
         }
@@ -139,21 +138,21 @@ public class Bracket {
 
         // Update the next match in the bracket with the winner
         for (BracketMatch m : matches) {
-            if (m.getSlot1().getSlotSource() instanceof WinnerOf winnerOf && winnerOf.getMatchId() == match.getMatchId()) {
-                match.getMatchByID(winnerOf.getMatchId()).setSlot1().setRobotName(winnerRobotName);
+            if (m.getSlot1().getSlotSource() instanceof SlotSources.WinnerOf winnerOf && winnerOf.matchID() == match.getMatchId()) {
+                m.getSlot1().setRobotName(winnerRobotName);
                 //break; // Exit the loop after updating the next match
             }
-            else if (m.getSlot2().getSlotSource() instanceof WinnerOf winnerOf && winnerOf.getMatchId() == match.getMatchId()) {
-                match.getMatchByID(winnerOf.getMatchId()).setSlot2().setRobotName(winnerRobotName);
+            else if (m.getSlot2().getSlotSource() instanceof SlotSources.WinnerOf winnerOf && winnerOf.matchID() == match.getMatchId()) {
+                m.getSlot2().setRobotName(winnerRobotName);
                 //break; // Exit the loop after updating the next match
             }
 
-            if (m.getSlot1().getSlotSource() instanceof LoserOf loserOf && loserOf.getMatchId() == match.getMatchId()) {
-                match.getMatchByID(loserOf.getMatchId()).setSlot1().setRobotName(match.otherRobot(winnerRobotName));
+            if (m.getSlot1().getSlotSource() instanceof SlotSources.LoserOf loserOf && loserOf.matchID() == match.getMatchId()) {
+                m.getSlot1().setRobotName(match.otherRobot(winnerRobotName));
                 //break; // Exit the loop after updating the next match
             }
-            else if (m.getSlot2().getSlotSource() instanceof LoserOf loserOf && loserOf.getMatchId() == match.getMatchId()) {
-                match.getMatchByID(loserOf.getMatchId()).setSlot2().setRobotName(match.otherRobot(winnerRobotName));
+            else if (m.getSlot2().getSlotSource() instanceof SlotSources.LoserOf loserOf && loserOf.matchID() == match.getMatchId()) {
+                m.getSlot2().setRobotName(match.otherRobot(winnerRobotName));
                 //break; // Exit the loop after updating the next match
             }
         }
@@ -169,8 +168,8 @@ public class Bracket {
                 for (BracketMatch potentialReset : matches) {
                     if (potentialReset.getMatchGroup() == BracketSide.FINALS && potentialReset.isReset() && potentialReset.hasRobot(finalsLoser)) {
                         // A reset match is needed
-                        potentialReset.setSlot1().setRobotName(finalsWinner);
-                        potentialReset.setSlot2().setRobotName(finalsLoser);
+                        potentialReset.getSlot1().setRobotName(finalsWinner);
+                        potentialReset.getSlot2().setRobotName(finalsLoser);
                         potentialReset.setMatchStatus(MatchStatus.READY);
                         break; // Exit the loop after scheduling the reset match
                     }
