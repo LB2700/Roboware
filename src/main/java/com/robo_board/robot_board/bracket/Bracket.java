@@ -1,6 +1,8 @@
 package com.robo_board.robot_board.bracket;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class Bracket {
     List<BracketMatch> matches;
@@ -23,7 +25,17 @@ public class Bracket {
     }
 
     private void checkWiring() {
-        // Implement the logic to check the wiring of the bracket
+
+        Set<SlotSources> usedSources = new HashSet<>();
+        for (BracketMatch match : matches) {
+            for (Slot slot : new Slot[]{match.getSlot1(), match.getSlot2()}) {
+                if(!usedSources.add(slot.getSlotSource())) {
+                    throw new IllegalArgumentException("Duplicate slot source found: " + slot.getSlotSource());
+                }
+            }
+        }
+
+        // Logic to check the the bracket is created correctly and no overlap is present in matches.
         for (int i = 0; i < matches.size(); i++) {
             for (int j = i + 1; j < matches.size(); j++) {
                 if (matches.get(i).getMatchId() == matches.get(j).getMatchId()) {
@@ -57,10 +69,10 @@ public class Bracket {
                 }
             }
             
-            if (matches.get(i).getSlot1().getSlotSource() instanceof SlotSources.Seed seed && seed.seedNumber() > seeds.length) {
+            if (matches.get(i).getSlot1().getSlotSource() instanceof SlotSources.Seed seed && (seed.seedNumber() < 1 || seed.seedNumber() > seeds.length)) {
                 throw new IllegalArgumentException("Seed number " + seed.seedNumber() + " for match ID " + matches.get(i).getMatchId() + " exceeds the number of seeds provided.");
             }
-            if (matches.get(i).getSlot2().getSlotSource() instanceof SlotSources.Seed seed && seed.seedNumber() > seeds.length) {
+            if (matches.get(i).getSlot2().getSlotSource() instanceof SlotSources.Seed seed && (seed.seedNumber() < 1 || seed.seedNumber() > seeds.length)) {
                 throw new IllegalArgumentException("Seed number " + seed.seedNumber() + " for match ID " + matches.get(i).getMatchId() + " exceeds the number of seeds provided.");
             }
         }
@@ -162,21 +174,16 @@ public class Bracket {
 
         // Checking if a second championship match is needed
         for (BracketMatch m : matches) {
-            if (m.getMatchGroup() == BracketSide.FINALS && m.getMatchStatus() == MatchStatus.COMPLETED) {
-                String finalsWinner = m.getWinner();
-                String finalsLoser = m.getLoser();
-                for (BracketMatch potentialReset : matches) {
-                    if (potentialReset.getMatchGroup() == BracketSide.FINALS && potentialReset.isReset() && potentialReset.hasRobot(finalsLoser)) {
-                        // A reset match is needed
-                        potentialReset.getSlot1().setRobotName(finalsWinner);
-                        potentialReset.getSlot2().setRobotName(finalsLoser);
-                        potentialReset.setMatchStatus(MatchStatus.READY);
-                        break; // Exit the loop after scheduling the reset match
+            // Check if the match is a grand final and if the winner is the winner of the Winners bracket
+            if (m.isReset() && m.getSlot1().getSlotSource() instanceof SlotSources.WinnerOf winnersFinal && winnersFinal.matchID() == match.getMatchId()) {
+                    // Slot 1 is always the winners-bracket champion, who has never lost.
+                    String unbeatenRobot = match.getSlot1().getRobotName();
+                    if (winnerRobotName.equals(unbeatenRobot)) {
+                        m.setMatchStatus(MatchStatus.CANCELLED); // No need for a second match, the loser already got their second chance
                     }
-                }
             }
         }
-
+        
 
     }
 
@@ -193,13 +200,15 @@ public class Bracket {
     public String getChampion() {
         // Return the name of the champion robot
         for (BracketMatch match : matches) {
-            if (match.getMatchGroup() == BracketSide.FINALS && match.getMatchStatus() == MatchStatus.COMPLETED) {
-                //Grand Final and Reset Final are both in the FINALS side of the brakcet, so we olny take the FINALS match without a reset.
-                if (match.isReset()) {
-                    continue; // Skip if the match was reset
+            if(match.isReset()) {
+                if(match.getMatchStatus() == MatchStatus.COMPLETED) {
+                    return match.getWinner();
                 }
-                return match.getWinner();
             }
+            if (match.getMatchStatus() == MatchStatus.CANCELLED && match.getSlot1().getSlotSource() instanceof SlotSources.WinnerOf winnersFinal) {
+                return findMatchByID(winnersFinal.matchID()).getWinner();
+            }
+
         }
         return null; // No champion yet
     }
