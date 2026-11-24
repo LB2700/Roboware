@@ -1,8 +1,9 @@
 package com.robo_board.robot_board.competition;
 
 import java.util.ArrayList;
-import java.util.Random;
 import java.util.List;
+import java.util.Objects;
+import java.util.Random;
 
 import javax.json.Json;
 import javax.json.JsonArrayBuilder;
@@ -14,40 +15,20 @@ import robocode.BattleResults;
 
 public class League {
 
-    private static final ArrayList<String> SAMPLE_ENTRANTS = new ArrayList<String>(List.of( 
-        "sample.Corners",
-        "sample.Fire",
-        "sample.SpinBot",
-        "sample.SittingDuck",
-        "sample.Crazy",
-        "sample.MyFirstRobot",
-        "sample.PaintingRobot",
-        "sample.RamFire",
-        "sample.Tracker",
-        "sample.Target",
-        "sample.TrackFire",
-        "sample.VelociRobot",
-        "sample.VelociRobot"
-    ));
-    
-    private ArrayList<Entry> entries;
-    private ArrayList<ScheduledBattle> games;
+    private final List<Entry> entries;
+    private final ArrayList<ScheduledBattle> games;
 
-    public static League Generate(List<String> EntryNames, final int GAME_SIZE, final int GAME_COUNT_PER_ENTRY) {
-        return Generate(EntryNames, GAME_SIZE, GAME_COUNT_PER_ENTRY, ScheduledBattle.Settings.DEFAULT);
+    public static League Generate(List<Entry> entries, final int GAME_SIZE, final int GAME_COUNT_PER_ENTRY) {
+        return Generate(entries, GAME_SIZE, GAME_COUNT_PER_ENTRY, ScheduledBattle.Settings.DEFAULT);
     }
 
-    public static League Generate(List<String> EntryNames, final int GAME_SIZE, final int GAME_COUNT_PER_ENTRY,
+    public static League Generate(List<Entry> entries, final int GAME_SIZE, final int GAME_COUNT_PER_ENTRY,
             ScheduledBattle.Settings settings) {
-        final int ENTRY_COUNT = EntryNames.size();
+        final int ENTRY_COUNT = entries.size();
 
-        League newLeague = new League();
-        newLeague.battleSettings = java.util.Objects.requireNonNull(settings);
+        League newLeague = new League(entries);
+        newLeague.battleSettings = Objects.requireNonNull(settings);
         Random random = new Random();
-
-        for (int i = 0; i < ENTRY_COUNT; i++) {
-            newLeague.entries.add(new Entry(EntryNames.get(i), i));
-        }
 
         // ensure entries are matched uniformly the whole way up. Only matches entries with less than targetScheduledCount amount of games scheduled, 
         // then progressively increment targetScheduledCount until it reaches GAME_COUNT_PER_ENTRY
@@ -190,14 +171,14 @@ public class League {
         return newLeague;
     }
 
-    private static int getLowestGameCount(ArrayList<Entry> entries) {
+    private static int getLowestGameCount(List<Entry> entries) {
         ArrayList<Entry> sortedEntries = new ArrayList<>(entries);
         sortedEntries.sort((a, b) -> Integer.compare(a.gamesScheduled, b.gamesScheduled));
 
         return sortedEntries.get(0).gamesScheduled;
     }
 
-    private static ArrayList<Entry> getEntriesWithLessGamesThan(int targetScheduledCount, ArrayList<Entry> entries) {
+    private static ArrayList<Entry> getEntriesWithLessGamesThan(int targetScheduledCount, List<Entry> entries) {
         ArrayList<Entry> onlyEntriesWithLowestGames = new ArrayList<>();
         for (Entry entry : entries) {
             if (entry.gamesScheduled <= targetScheduledCount) {
@@ -207,13 +188,8 @@ public class League {
         return onlyEntriesWithLowestGames;
     }
 
-    public static void main() {
-       League myLeague = League.Generate(SAMPLE_ENTRANTS, 4, 2);
-       myLeague.showSchedule();
-    }
-        
-    public League() {
-        entries = new ArrayList<>();
+    public League(List<Entry> entries) {
+        this.entries = List.copyOf(Objects.requireNonNull(entries, "entries"));
         games =  new ArrayList<>();
     }
 
@@ -221,6 +197,10 @@ public class League {
 
     public List<ScheduledBattle> getScheduledBattles() {
         return List.copyOf(games);
+    }
+
+    List<Entry> getEntries() {
+        return entries;
     }
 
     /** Immutable robot-name schedule for callers that only need the matchups. */
@@ -279,8 +259,12 @@ public class League {
     private void updateResults(BattleResults results) {
         //System.out.println(results);
 
+        String resultRobotName = results.getTeamLeaderName();
+        if (resultRobotName != null && resultRobotName.endsWith("*")) {
+            resultRobotName = resultRobotName.substring(0, resultRobotName.length() - 1);
+        }
         for (Entry entry : entries) {
-            if (entry.getRobotName().equals(results.getTeamLeaderName())) {
+            if (entry.getRobotName().equals(resultRobotName)) {
                 entry.aggregateStats(results);
                 //entry.showStats();
                 break;

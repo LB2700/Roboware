@@ -3,6 +3,7 @@ package com.robo_board.robot_board.competition;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.StringReader;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.json.Json;
@@ -13,8 +14,22 @@ import robocode.BattleResults;
 
 class LeagueJsonTests {
     @Test
+    void leagueKeepsAnImmutableSnapshotOfItsEntryList() {
+        Entry entry = new Entry("sample.Fire", 0, "Author");
+        List<Entry> sourceEntries = new ArrayList<>(List.of(entry));
+
+        League league = new League(sourceEntries);
+        sourceEntries.clear();
+
+        assertEquals(1, league.toJsonObject().getJsonArray("entries").size());
+        assertSame(entry, league.getEntries().getFirst());
+        assertThrows(UnsupportedOperationException.class,
+                () -> league.getEntries().add(new Entry("sample.Corners", 1, "Other Author")));
+    }
+
+    @Test
     void emptyLeagueIncludesItsDefaultSettings() {
-        var json = new League().toJsonObject();
+        var json = new League(List.of()).toJsonObject();
         assertTrue(json.getJsonArray("entries").isEmpty());
         assertTrue(json.getJsonArray("games").isEmpty());
         var settings = json.getJsonObject("battleSettings");
@@ -25,7 +40,9 @@ class LeagueJsonTests {
     @Test
     void leagueExportIncludesConfiguredRulesAndAccumulatedResults() {
         var settings = new ScheduledBattle.Settings(3, 1200, 900, 700, 0.3, 150, true, false);
-        League league = League.Generate(List.of("sample.Fire", "sample.Corners"), 2, 1, settings);
+        League league = League.Generate(List.of(
+                new Entry("sample.Fire", 0, "Author 1"),
+                new Entry("sample.Corners", 1, "Author 2")), 2, 1, settings);
         var result = new BattleResults("sample.Fire", 1, 100, 20, 30, 40, 5, 4, 1, 2, 3, 4);
         league.recordBattleResults(List.of(result));
         league.recordBattleResults(List.of(result));
@@ -56,7 +73,9 @@ class LeagueJsonTests {
 
     @Test
     void participantIndicesDistinguishEntriesWithTheSameRobotName() {
-        League league = League.Generate(List.of("sample.Fire", "sample.Fire"), 2, 1);
+        League league = League.Generate(List.of(
+                new Entry("sample.Fire", 0, "Author 1"),
+                new Entry("sample.Fire", 1, "Author 2")), 2, 1);
         var json = league.toJsonObject();
         var entries = json.getJsonArray("entries");
         var game = json.getJsonArray("games").getJsonObject(0);
@@ -73,7 +92,7 @@ class LeagueJsonTests {
 
     @Test
     void entryExportEscapesRobotNamesAndIncludesInitialStats() {
-        Entry entry = new Entry("robot.\"Quoted\"\\Name\n\u03bb", 7);
+        Entry entry = new Entry("robot.\"Quoted\"\\Name\n\u03bb", 7, "Sample Author");
         entry.gamesScheduled = 3;
         try (var reader = Json.createReader(new StringReader(entry.toJson()))) {
             var json = reader.readObject();
@@ -84,5 +103,15 @@ class LeagueJsonTests {
             assertEquals(entry.getRobotName(), json.getJsonObject("stats").getString("teamLeaderName"));
             assertEquals(0, json.getJsonObject("stats").getInt("score"));
         }
+    }
+
+    @Test
+    void developmentRobotMarkerDoesNotPreventResultAggregation() {
+        Entry entry = new Entry("test_submissions.CrimsonDrifter", 0, "Author");
+        League league = new League(List.of(entry));
+        league.recordBattleResults(List.of(new BattleResults(
+                "test_submissions.CrimsonDrifter*", 1, 75, 20, 10, 30, 5, 4, 1, 1, 0, 0)));
+
+        assertEquals(75, entry.getStats().getScore());
     }
 }

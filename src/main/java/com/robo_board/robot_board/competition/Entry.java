@@ -8,29 +8,122 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 
+import javax.tools.Diagnostic;
+import javax.tools.DiagnosticCollector;
+import javax.tools.JavaCompiler;
+import javax.tools.JavaFileObject;
+import javax.tools.StandardJavaFileManager;
+import javax.tools.ToolProvider;
 import javax.json.Json;
 import javax.json.JsonObject;
 
 import robocode.BattleResults;
 
 class Entry {
+    private static final Path ROBOTS_DIRECTORY = Path.of("robocode", "robots")
+            .toAbsolutePath().normalize();
     
     public int gamesScheduled = 0;
     private final String robotName;
     private final int index;
+    private final String authorName;
     private BattleResults stats;
 
-    public Entry(String robotName, int index) {
+    public Entry(String robotName, int index, String authorName) {
         this.index = index;
-        this.robotName = robotName;
+        this.robotName = Objects.requireNonNull(robotName, "robotName");
+        this.authorName = Objects.requireNonNull(authorName, "authorName");
 
         // Use BattleResults to aggregate an entry's stats across the league.
         stats = new BattleResults(robotName, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     }
 
+    public static Path findRobotFolder(String folderName) {
+        Objects.requireNonNull(folderName, "folderName");
+        if (folderName.isBlank() || Path.of(folderName).getNameCount() != 1) {
+            throw new IllegalArgumentException("A robot folder name must be provided: " + folderName);
+        }
+
+        Path folder = ROBOTS_DIRECTORY.resolve(folderName).normalize();
+        if (!folder.getParent().equals(ROBOTS_DIRECTORY) || !Files.isDirectory(folder)) {
+            throw new IllegalArgumentException("Robot folder not found: " + folderName);
+        }
+        return folder;
+    }
+
+    public static void compileSubmissions(Path robotFolder) throws IOException {
+        Objects.requireNonNull(robotFolder, "robotFolder");
+        Path normalizedFolder = robotFolder.toAbsolutePath().normalize();
+        if (!Files.isDirectory(normalizedFolder)) {
+            throw new IllegalArgumentException("Robot submission folder not found: " + robotFolder);
+        }
+
+        List<Path> sourceFiles;
+        try (var files = Files.list(normalizedFolder)) {
+            sourceFiles = files
+                    .filter(path -> Files.isRegularFile(path) && path.getFileName().toString().endsWith(".java"))
+                    .sorted()
+                    .toList();
+        }
+        if (sourceFiles.isEmpty()) {
+            throw new IllegalArgumentException("No Java submissions found in: " + normalizedFolder);
+        }
+
+        JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+        if (compiler == null) {
+            throw new IllegalStateException("A JDK is required to compile robot submissions; no Java compiler was found");
+        }
+
+        Path outputDirectory = normalizedFolder.getParent();
+        if (outputDirectory == null) {
+            throw new IllegalArgumentException("Robot submission folder needs a parent directory: " + robotFolder);
+        }
+
+        DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
+        try (StandardJavaFileManager fileManager = compiler.getStandardFileManager(
+                diagnostics, java.util.Locale.ROOT, StandardCharsets.UTF_8)) {
+            Iterable<? extends JavaFileObject> compilationUnits =
+                    fileManager.getJavaFileObjectsFromPaths(sourceFiles);
+            List<String> options = List.of(
+                    "-classpath", System.getProperty("java.class.path"),
+                    "--release", "8",
+                    "-encoding", StandardCharsets.UTF_8.name(),
+                    "-d", outputDirectory.toString());
+            boolean compiled = Boolean.TRUE.equals(compiler.getTask(
+                    null, fileManager, diagnostics, options, null, compilationUnits).call());
+            if (!compiled) {
+                throw new IllegalStateException(formatCompilationErrors(normalizedFolder, diagnostics));
+            }
+        }
+    }
+
+    private static String formatCompilationErrors(Path robotFolder,
+            DiagnosticCollector<JavaFileObject> diagnostics) {
+        StringBuilder message = new StringBuilder("Robot submission compilation failed in ")
+                .append(robotFolder).append(':');
+        diagnostics.getDiagnostics().stream()
+                .filter(diagnostic -> diagnostic.getKind() == Diagnostic.Kind.ERROR)
+                .forEach(diagnostic -> message.append(System.lineSeparator())
+                        .append(diagnostic.getSource() == null
+                                ? "<unknown source>" : diagnostic.getSource().getName())
+                        .append(':').append(diagnostic.getLineNumber())
+                        .append(':').append(diagnostic.getColumnNumber())
+                        .append(": error: ")
+                        .append(diagnostic.getMessage(java.util.Locale.ROOT)));
+        return message.toString();
+    }
+
     public static List<Entry> readCsv(Path csvFile) throws IOException {
-        List<List<String>> rows = parseCsv(Files.readString(csvFile, StandardCharsets.UTF_8));
+        Path normalizedCsvFile = csvFile.toAbsolutePath().normalize();
+        Path robotFolder = normalizedCsvFile.getParent();
+        if (robotFolder == null || robotFolder.getFileName() == null) {
+            throw new IllegalArgumentException("Entry CSV must be inside a robot package folder: " + csvFile);
+        }
+        String packageName = robotFolder.getFileName().toString();
+
+        List<List<String>> rows = parseCsv(Files.readString(normalizedCsvFile, StandardCharsets.UTF_8));
         if (rows.isEmpty()) {
             throw new IllegalArgumentException("Entry CSV is empty: " + csvFile);
         }
@@ -38,6 +131,10 @@ class Entry {
         int robotNameColumn = rows.getFirst().indexOf("Robot Name");
         if (robotNameColumn < 0) {
             throw new IllegalArgumentException("Entry CSV must contain a 'Robot Name' column: " + csvFile);
+        }
+        int authorNameColumn = rows.getFirst().indexOf("Full name");
+        if (authorNameColumn < 0) {
+            throw new IllegalArgumentException("Entry CSV must contain a 'Full name' column: " + csvFile);
         }
 
         List<Entry> entries = new ArrayList<>();
@@ -49,7 +146,12 @@ class Entry {
             if (robotNameColumn >= row.size() || row.get(robotNameColumn).isBlank()) {
                 throw new IllegalArgumentException("Missing robot name on CSV row " + (rowIndex + 1));
             }
-            entries.add(new Entry(row.get(robotNameColumn).trim(), entries.size()));
+            if (authorNameColumn >= row.size() || row.get(authorNameColumn).isBlank()) {
+                throw new IllegalArgumentException("Missing author name on CSV row " + (rowIndex + 1));
+            }
+            String qualifiedRobotName = packageName + "." + row.get(robotNameColumn).trim();
+            entries.add(new Entry(qualifiedRobotName, entries.size(),
+                    row.get(authorNameColumn).trim()));
         }
         return List.copyOf(entries);
     }
@@ -103,6 +205,7 @@ class Entry {
     public JsonObject toJsonObject() {
         return Json.createObjectBuilder()
                 .add("robotName", robotName)
+                .add("authorName", authorName)
                 .add("index", index)
                 .add("gamesScheduled", gamesScheduled)
                 .add("stats", statsToJsonObject())
@@ -208,6 +311,10 @@ class Entry {
 
     public String getRobotName() {
         return robotName;
+    }
+
+    public String getAuthorName() {
+        return authorName;
     }
 
     public BattleResults getStats() {

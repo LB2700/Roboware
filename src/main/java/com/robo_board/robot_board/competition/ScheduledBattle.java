@@ -47,7 +47,8 @@ public final class ScheduledBattle {
     private static Collection<Entry> createParticipants(List<String> entries) {
         List<Entry> participants = new ArrayList<>();
         for (int i = 0; i < entries.size(); i++) {
-            participants.add(new Entry(Objects.requireNonNull(entries.get(i)), i));
+            participants.add(new Entry(Objects.requireNonNull(entries.get(i)), i,
+                    "Sample Author " + (i + 1)));
         }
         return participants;
     }

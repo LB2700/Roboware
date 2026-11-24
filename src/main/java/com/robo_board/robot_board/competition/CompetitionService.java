@@ -27,7 +27,7 @@ public class CompetitionService {
 
         System.out.printf("Running competition... %n");
 
-        CompetitionDriver competition = new CompetitionDriver(CompetitionDriver.SAMPLE_ENTRANTS,
+        CompetitionDriver competition = new CompetitionDriver(
                 Path.of("robocode").toAbsolutePath().normalize());
 
         competition.setOnBattleCompleted((JsonObject competitionData) -> {
