@@ -3,9 +3,9 @@ const source = new EventSource("/events");
 
 source.addEventListener("update-competition", event => {
     const competitionData = JSON.parse(event.data);
-    const entries = competitionData.entries.sort((a, b) => a.stats.score - b.stats.score);
-    
-    console.log("Entry List",entries);
+    window.dispatchEvent(new CustomEvent("competition-update", {
+        detail: competitionData
+    }));
 });
 
 source.onmessage = event => {

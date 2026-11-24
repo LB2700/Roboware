@@ -1,21 +1,23 @@
 
 class Player {
+
 	constructor(inPlayer, inBot) {
 		this.player = inPlayer;
 		this.bot = inBot;
+		this.placement = 1;
 		this.points = 0;
-		this.placement = 0;
-		}
+		this.firsts = 0;
+	}
 
 	getPoints() {
 		return this.points;
 	}
 
-	addPoints(inPoints) {
-		this.points += inPoints;
+	setStats(inPoints, inFirsts) {
+		this.points = inPoints;
+		this.firsts = inFirsts;
 	}
 
-	
 	setPlacement(inPlace) {
 		this.placement = inPlace;
 	}
@@ -25,15 +27,7 @@ class Player {
 	}
 }
 
-const players = [
-	new Player("Eóin", "AAA"),
-	new Player("Omar", "BBB"),
-	new Player("Anastatsia", "CCC"),
-	new Player("LuLu", "DDD"),
-	new Player("Luke", "EEE"),
-	new Player("Flourish", "FFF"),
-	new Player("Oisin", "GGG")
-];
+let players = [];
 
 const playerRows = document.querySelector("#player-ids");
 const rowByPlayer = new Map();
@@ -89,8 +83,10 @@ function renderPlayers() {
 
 		// Create the player name cell using the playerProfile styles.
 		const playerCell = document.createElement("td");
+		
 		const playerProfile = document.createElement("div");
 		playerProfile.className = "playerProfile";
+
 		const name = document.createElement("div");
 		name.className = "title";
 		name.textContent = player.player;
@@ -103,7 +99,7 @@ function renderPlayers() {
 		const points = document.createElement("span");
 		points.textContent = player.getPoints();
 		pointsCell.append(points);
-		row.append(pointsCell);
+		row.append(pointsCell, createCell(player.firsts));
 		return row;
 	});
 	
@@ -130,15 +126,27 @@ function renderPlayers() {
 	}
 }
 
-function updatePlayers() {
-// This is for testing.
-	const player = players[Math.floor(Math.random() * players.length) + 1];
-	player.addPoints(Math.floor(Math.random()*1000));
-
-	// Sort the players again and update the table placements.
-	renderPlayers();
+function updatePlayer(entry) {
+	for (let player of players) {
+			if (entry.id == player.bot) {
+				player.setStats(entry.stats.score, entry.stats.firsts);
+				return;
+		}
+	}
+	let newPlayer = new Player("Placeholder", entry.id);
+	newPlayer.setStats(entry.stats.score, entry.stats.firsts);
+	players.push(newPlayer);
 }
 
-// Give the page an initial render, then update it every two seconds.
+function logReceivedEvent(event) {
+	for (let i = 0; i < event.detail.entries.length; i++) {
+		let entry = event.detail.entries[i];
+		updatePlayer(entry);
+	}
+}
+
+window.addEventListener("competition-update", logReceivedEvent);
+
+// Render once, then re-render every 2 seconds
 renderPlayers();
-setInterval(updatePlayers, refreshRate);
+setInterval(renderPlayers, refreshRate);
