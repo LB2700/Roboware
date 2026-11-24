@@ -79,10 +79,12 @@ class ScheduledBattleTests {
 
     @Test
     void leagueAndScheduledBattlePreserveConfiguredRules() {
-        League league = League.Generate(List.of("sample.Corners", "sample.Fire"), 2, 1, settings);
+        League league = League.Generate(List.of(
+                new Entry("sample.Corners", 0, "Author 1"),
+                new Entry("sample.Fire", 1, "Author 2")), 2, 1, settings);
         assertEquals(1, league.getScheduledBattles().size());
         assertEquals(settings, league.getScheduledBattles().getFirst().settings());
-        ScheduledBattle game = new ScheduledBattle(List.of(new Entry("sample.Fire", 0)), settings);
+        ScheduledBattle game = new ScheduledBattle(List.of(new Entry("sample.Fire", 0, "Sample Author")), settings);
         try (var reader = Json.createReader(new java.io.StringReader(game.toJson()))) {
             assertEquals(game, ScheduledBattle.fromJson(reader.readObject()));
         }
@@ -99,9 +101,9 @@ class ScheduledBattleTests {
 
     @Test
     void matchupTrackingDistinguishesEntrantsWithTheSameRobotId() {
-        Entry first = new Entry("sample.Fire", 0);
-        Entry second = new Entry("sample.Fire", 1);
-        Entry opponent = new Entry("sample.Corners", 2);
+        Entry first = new Entry("sample.Fire", 0, "Sample Author 1");
+        Entry second = new Entry("sample.Fire", 1, "Sample Author 2");
+        Entry opponent = new Entry("sample.Corners", 2, "Sample Author 3");
         ScheduledBattle battle = new ScheduledBattle(List.of(first, opponent), settings);
         ArrayList<ScheduledBattle> games = new ArrayList<>(List.of(battle));
 
