@@ -17,8 +17,8 @@ public class Slot{
         return robotName;
     }
 
-    public void setRobotName(String robotName) {
-        this.robotName = robotName;
+    public void setRobotName(String inRobotName) {
+        robotName = inRobotName;
     }
 
     public boolean hasRobot() {
