@@ -1,21 +1,25 @@
 
 class Player {
+
 	constructor(inPlayer, inBot) {
 		this.player = inPlayer;
 		this.bot = inBot;
-		this.points = 0;
-		this.placement = 0;
+		this.placement = 1;
+		this.stats = {
+			score: 0,
+			firsts: 0,
+			damage: 0
 		}
-
-	getPoints() {
-		return this.points;
 	}
 
-	addPoints(inPoints) {
-		this.points += inPoints;
+	setStats(inStats) {
+		this.stats = {
+			score: inStats.score,
+			firsts: inStats.firsts,
+			damage: (inStats.bulletDamage + inStats.ramDamage)
+		}
 	}
 
-	
 	setPlacement(inPlace) {
 		this.placement = inPlace;
 	}
@@ -25,15 +29,7 @@ class Player {
 	}
 }
 
-const players = [
-	new Player("Eóin", "AAA"),
-	new Player("Omar", "BBB"),
-	new Player("Anastatsia", "CCC"),
-	new Player("LuLu", "DDD"),
-	new Player("Luke", "EEE"),
-	new Player("Flourish", "FFF"),
-	new Player("Oisin", "GGG")
-];
+let players = [];
 
 const playerRows = document.querySelector("#player-ids");
 const rowByPlayer = new Map();
@@ -46,7 +42,7 @@ function sort(players) {
 		for (let i = 1; i < players.length; i++) {
 			const prev = players[i - 1];
 			const cur = players[i];
-			if (cur.getPoints() > prev.getPoints()) {
+			if (cur.stats.score > prev.stats.score) {
 				players[i] = prev;
 				players[i - 1] = cur;
 				sorted = false;
@@ -87,23 +83,7 @@ function renderPlayers() {
 		// Use the placement set by the sort function.
 		row.append(createCell(String(player.placement)));
 
-		// Create the player name cell using the playerProfile styles.
-		const playerCell = document.createElement("td");
-		const playerProfile = document.createElement("div");
-		playerProfile.className = "playerProfile";
-		const name = document.createElement("div");
-		name.className = "title";
-		name.textContent = player.player;
-		playerProfile.append(name);
-		playerCell.append(playerProfile);
-		row.append(playerCell, createCell(player.bot));
-
-		const pointsCell = document.createElement("td");
-		pointsCell.className = "points-cell";
-		const points = document.createElement("span");
-		points.textContent = player.getPoints();
-		pointsCell.append(points);
-		row.append(pointsCell);
+		row.append(createCell(player.player), createCell(player.bot), createCell(player.stats.score), createCell(player.stats.damage), createCell(player.stats.firsts));
 		return row;
 	});
 	
@@ -130,15 +110,28 @@ function renderPlayers() {
 	}
 }
 
-function updatePlayers() {
-// This is for testing.
-	const player = players[Math.floor(Math.random() * players.length) + 1];
-	player.addPoints(Math.floor(Math.random()*1000));
-
-	// Sort the players again and update the table placements.
-	renderPlayers();
+function updatePlayer(entry) {
+	for (let player of players) {
+			if (entry.id == player.bot) {
+				player.setStats(entry.stats);
+				return;
+		}
+	}
+	let newPlayer = new Player("Placeholder", entry.id);
+	newPlayer.setStats(entry.stats);
+	players.push(newPlayer);
 }
 
-// Give the page an initial render, then update it every two seconds.
+function logReceivedEvent(event) {
+	console.log(event.detail);
+	for (let i = 0; i < event.detail.entries.length; i++) {
+		let entry = event.detail.entries[i];
+		updatePlayer(entry);
+	}
+}
+
+window.addEventListener("competition-update", logReceivedEvent);
+
+// Render once, then re-render every 2 seconds
 renderPlayers();
-setInterval(updatePlayers, refreshRate);
+setInterval(renderPlayers, refreshRate);
