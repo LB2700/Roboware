@@ -2,6 +2,7 @@ package com.robo_board.robot_board.competition;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
@@ -141,10 +142,14 @@ public class GameDriver {
         ScheduledBattle game = gameSchedule.get(gameIndex);
         engine.setVisible(game.settings().visible());
         RobotSpecification[] robots = new RobotSpecification[game.entries().size()];
+        RobotSpecification[] repository = engine.getLocalRepository();
         for (int i = 0; i < robots.length; i++) {
-            RobotSpecification[] matches = engine.getLocalRepository(game.entries().get(i));
+            String robotName = game.entries().get(i);
+            RobotSpecification[] matches = Arrays.stream(repository)
+                    .filter(robot -> robotName.equals(robot.getClassName()))
+                    .toArray(RobotSpecification[]::new);
             if (matches.length != 1) {
-                throw new IllegalStateException("Could not resolve robot " + game.entries().get(i)
+                throw new IllegalStateException("Could not resolve robot " + robotName
                         + " for battle " + gameIndex);
             }
             robots[i] = matches[0];

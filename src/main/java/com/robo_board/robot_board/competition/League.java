@@ -1,10 +1,9 @@
 package com.robo_board.robot_board.competition;
 
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Random;
 import java.util.List;
+import java.util.Objects;
+import java.util.Random;
 
 import javax.json.Json;
 import javax.json.JsonArrayBuilder;
@@ -16,40 +15,20 @@ import robocode.BattleResults;
 
 public class League {
 
-    private static final ArrayList<String> SAMPLE_ENTRANTS = new ArrayList<String>(List.of( 
-        "sample.Corners",
-        "sample.Fire",
-        "sample.SpinBot",
-        "sample.SittingDuck",
-        "sample.Crazy",
-        "sample.MyFirstRobot",
-        "sample.PaintingRobot",
-        "sample.RamFire",
-        "sample.Tracker",
-        "sample.Target",
-        "sample.TrackFire",
-        "sample.VelociRobot",
-        "sample.VelociRobot"
-    ));
-    
-    private ArrayList<Entry> entries;
-    private ArrayList<ScheduledBattle> games;
+    private final List<Entry> entries;
+    private final ArrayList<ScheduledBattle> games;
 
-    public static League Generate(List<String> EntryNames, final int GAME_SIZE, final int GAME_COUNT_PER_ENTRY) {
-        return Generate(EntryNames, GAME_SIZE, GAME_COUNT_PER_ENTRY, ScheduledBattle.Settings.DEFAULT);
+    public static League Generate(List<Entry> entries, final int GAME_SIZE, final int GAME_COUNT_PER_ENTRY) {
+        return Generate(entries, GAME_SIZE, GAME_COUNT_PER_ENTRY, ScheduledBattle.Settings.DEFAULT);
     }
 
-    public static League Generate(List<String> EntryNames, final int GAME_SIZE, final int GAME_COUNT_PER_ENTRY,
+    public static League Generate(List<Entry> entries, final int GAME_SIZE, final int GAME_COUNT_PER_ENTRY,
             ScheduledBattle.Settings settings) {
-        final int ENTRY_COUNT = EntryNames.size();
+        final int ENTRY_COUNT = entries.size();
 
-        League newLeague = new League();
-        newLeague.battleSettings = java.util.Objects.requireNonNull(settings);
+        League newLeague = new League(entries);
+        newLeague.battleSettings = Objects.requireNonNull(settings);
         Random random = new Random();
-
-        for (int i = 0; i < ENTRY_COUNT; i++) {
-            newLeague.entries.add(new Entry(EntryNames.get(i), i));
-        }
 
         // ensure entries are matched uniformly the whole way up. Only matches entries with less than targetScheduledCount amount of games scheduled, 
         // then progressively increment targetScheduledCount until it reaches GAME_COUNT_PER_ENTRY
@@ -192,14 +171,14 @@ public class League {
         return newLeague;
     }
 
-    private static int getLowestGameCount(ArrayList<Entry> entries) {
+    private static int getLowestGameCount(List<Entry> entries) {
         ArrayList<Entry> sortedEntries = new ArrayList<>(entries);
         sortedEntries.sort((a, b) -> Integer.compare(a.gamesScheduled, b.gamesScheduled));
 
         return sortedEntries.get(0).gamesScheduled;
     }
 
-    private static ArrayList<Entry> getEntriesWithLessGamesThan(int targetScheduledCount, ArrayList<Entry> entries) {
+    private static ArrayList<Entry> getEntriesWithLessGamesThan(int targetScheduledCount, List<Entry> entries) {
         ArrayList<Entry> onlyEntriesWithLowestGames = new ArrayList<>();
         for (Entry entry : entries) {
             if (entry.gamesScheduled <= targetScheduledCount) {
@@ -209,13 +188,8 @@ public class League {
         return onlyEntriesWithLowestGames;
     }
 
-    public static void main() {
-       League myLeague = League.Generate(SAMPLE_ENTRANTS, 4, 2);
-       myLeague.showSchedule();
-    }
-        
-    public League() {
-        entries = new ArrayList<>();
+    public League(List<Entry> entries) {
+        this.entries = List.copyOf(Objects.requireNonNull(entries, "entries"));
         games =  new ArrayList<>();
     }
 
@@ -223,6 +197,10 @@ public class League {
 
     public List<ScheduledBattle> getScheduledBattles() {
         return List.copyOf(games);
+    }
+
+    List<Entry> getEntries() {
+        return entries;
     }
 
     /** Immutable robot-name schedule for callers that only need the matchups. */
@@ -281,8 +259,12 @@ public class League {
     private void updateResults(BattleResults results) {
         //System.out.println(results);
 
+        String resultRobotName = results.getTeamLeaderName();
+        if (resultRobotName != null && resultRobotName.endsWith("*")) {
+            resultRobotName = resultRobotName.substring(0, resultRobotName.length() - 1);
+        }
         for (Entry entry : entries) {
-            if (entry.id.equals(results.getTeamLeaderName())) {
+            if (entry.getRobotName().equals(resultRobotName)) {
                 entry.aggregateStats(results);
                 //entry.showStats();
                 break;
@@ -329,145 +311,4 @@ public class League {
     }
 
   
-}
-
-class Entry {
-
-
-    public int gamesScheduled = 0;
-    public String id;
-    private int index = 0;
-
-    private BattleResults stats;
-
-    public Entry(String id, int index) {
-        this.index = index;
-        this.id = id;
-
-        // use BattleResults to record an entries stats accross the league, despite the class name indicating 
-        // this be the results for one singular battle.
-        stats = new BattleResults(id, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-    }
-
-
-    public String toString() {
-        return Integer.toString(index);
-    }
-
-    public JsonObject toJsonObject() {
-        return Json.createObjectBuilder()
-                .add("id", id)
-                .add("index", index)
-                .add("gamesScheduled", gamesScheduled)
-                .add("stats", statsToJsonObject())
-                .build();
-    }
-
-    public String toJson() {
-        return toJsonObject().toString();
-    }
-
-    private JsonObject statsToJsonObject() {
-        return Json.createObjectBuilder()
-                .add("teamLeaderName", stats.getTeamLeaderName())
-                .add("rank", stats.getRank())
-                .add("score", stats.getScore())
-                .add("survival", stats.getSurvival())
-                .add("lastSurvivorBonus", stats.getLastSurvivorBonus())
-                .add("bulletDamage", stats.getBulletDamage())
-                .add("bulletDamageBonus", stats.getBulletDamageBonus())
-                .add("ramDamage", stats.getRamDamage())
-                .add("ramDamageBonus", stats.getRamDamageBonus())
-                .add("firsts", stats.getFirsts())
-                .add("seconds", stats.getSeconds())
-                .add("thirds", stats.getThirds())
-                .build();
-    }
-
-    public void showInfo() {
-        System.out.printf("%s. gamesScheduled: %d%n", id, gamesScheduled);
-    }
-
-    public ArrayList<ScheduledBattle> findMyGames(ArrayList<ScheduledBattle> games) {
-        ArrayList<ScheduledBattle> myGames = new ArrayList<>();
-        for (ScheduledBattle game : games) {
-            if (game.participants().contains(this)) {
-                myGames.add(game);
-            }
-        }
-        return myGames;
-    }
-
-    public HashSet<Entry> findPastOpponents(ArrayList<ScheduledBattle> games) {
-        HashSet<Entry> pastOpponents = new HashSet<>();
-        for (ScheduledBattle game : findMyGames(games)) {
-            for (Entry opponent : game.participants()) {
-                if (opponent != this) {
-                    pastOpponents.add(opponent);
-                }
-            }
-        }
-        return pastOpponents;
-    }
-
-    public void showGames(ArrayList<ScheduledBattle> games) {
-        System.out.printf("Games with %S%n", id);
-        for (ScheduledBattle game : findMyGames(games)) {
-            System.out.println(game.toString());
-        }
-    }
-
-    public int countCollisions(ArrayList<ScheduledBattle> games) {
-        HashMap<Entry, Integer> opponentsCount = new HashMap<>();
-        
-        for (Entry opponent : findPastOpponents(games)) {
-            opponentsCount.put(opponent, 0);
-            for (ScheduledBattle game : findMyGames(games)) {
-                if (game.participants().contains(opponent)) {
-                    opponentsCount.put(opponent, opponentsCount.get(opponent) + 1);
-                }
-            }
-        }
-        System.out.printf("opponentsCount for entry %s: %n",id);
-        for (Entry opponent : opponentsCount.keySet()) {
-            System.out.printf("\t%s: %d%n", opponent, opponentsCount.get(opponent));
-        }
-        // for (Integer opCount : opponentsCount.values()) {
-        //     opponentsCount += opCount - 1;
-        // }
-        return 0;
-    }
-
-    public void aggregateStats(BattleResults battleResults) {
-        stats = new BattleResults(
-                id, 0,
-                (double)(battleResults.getScore() + stats.getScore()),
-                (double)(battleResults.getSurvival() + stats.getSurvival()),
-                (double)(battleResults.getLastSurvivorBonus() + stats.getLastSurvivorBonus()),
-                (double)(battleResults.getBulletDamage() + stats.getBulletDamage()),
-                (double)(battleResults.getBulletDamageBonus() + stats.getBulletDamageBonus()),
-                (double)(battleResults.getRamDamage() + stats.getRamDamage()),
-                (double)(battleResults.getRamDamageBonus() + stats.getRamDamageBonus()),
-                battleResults.getFirsts() + stats.getFirsts(),
-                battleResults.getSeconds() + stats.getSeconds(),
-                battleResults.getThirds() + stats.getThirds()
-        );
-    }
-
-    public void showStats() {
-        System.out.printf("%d. name: %s | score: %d | firsts: %d | seconds: %d | thirds: %d | bullet damage: %d | ram damage: %d%n",
-                            index, id, stats.getScore(), stats.getFirsts(), stats.getSeconds(), stats.getThirds(), stats.getBulletDamage(), stats.getRamDamage());
-    }
-
-    public int getIndex() {
-        return this.index;
-    }
-
-    public BattleResults getStats() {
-        return stats;
-    }
-
-    public String getDisplayName() {
-        return this.id;
-    }
 }
