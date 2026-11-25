@@ -85,4 +85,8 @@ public class CompetitionDriver {
         //System.out.println("This function does get clled");
         this.onBattleCompleted = onBattleCompleted;
     }
+
+    public JsonObject getCurrentState() {
+        return leaguePhase.toJsonObject();
+    }
 }
