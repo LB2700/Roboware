@@ -69,74 +69,12 @@ public class CompetitionDriver {
             runners.add(new RobocodeEngineRunner(runnerId++, robocodeHome.toFile(), batch));
         }
 
-        onBattleCompleted.accept(leaguePhase.toJsonObject());
-
         // run each runner in a seperate java process, pass function to respond to games completing
         RobocodeEngineRunner.runAll(runners, 
             (List<BattleResults> battleResults) -> {
                 leaguePhase.recordBattleResults(battleResults);
                 onBattleCompleted.accept(leaguePhase.toJsonObject());
                 //System.out.println(leaguePhase.toJsonObject());
-
-        onBattleCompleted.accept(toJsonObject());
-
-        RobocodeEngineRunner.runAll(runners, battleResults -> {
-            leaguePhase.recordBattleResults(battleResults);
-            onBattleCompleted.accept(toJsonObject());
-        });
-
-        if (PRINT_LEAGUE_RESULTS) {
-            leaguePhase.showStatsTable();
-        }
-
-        runTournamentInSeries();
-    }
-
-    /**
-     * Seeds a double-elimination tournament from the completed league and runs
-     * its matches synchronously in one JVM. A single Robocode engine is reused,
-     * and each battle finishes before the next bracket battle is started.
-     *
-     * @return the completed tournament bracket
-     */
-    public Bracket runTournamentInSeries() {
-        tournament = new Bracket(leaguePhase.getTopN(16).stream()
-                .map(Entry::getRobotName)
-                .toArray(String[]::new));
-
-        System.setProperty(TARGET_TPS_PROPERTY, Integer.toString(BRACKET_TARGET_TPS));
-        RobocodeEngine engine = new RobocodeEngine(robocodeHome.toFile());
-        BattleOutcomeListener outcomeListener = new BattleOutcomeListener();
-        engine.addBattleListener(outcomeListener);
-
-        try {
-            RobotSpecification[] repository = engine.getLocalRepository();
-
-            while (!tournament.isFinished()) {
-
-
-                BracketMatch match = tournament.getMatches().stream()
-                        .filter(candidate -> candidate.getMatchStatus() == MatchStatus.READY)
-                        .min(java.util.Comparator.comparingInt(BracketMatch::getRound)
-                                .thenComparingInt(BracketMatch::getMatchId))
-                        .orElseThrow(() -> new IllegalStateException(
-                                "Tournament has not finished, but no bracket match is ready"));
-
-                tournament.startMatch(match.getMatchId());
-
-                onBattleCompleted.accept(toJsonObject());
-
-                ScheduledBattle battle = new ScheduledBattle(
-                        Arrays.asList(match.getRobots()), battleSettings, BRACKET_TARGET_TPS);
-                
-                List<BattleResults> results = runBattle(engine, outcomeListener, repository,
-                        battle, "bracket match " + match.getMatchId());
-                String winner = normalizeRobotName(results.getFirst().getTeamLeaderName());
-                if (!match.hasRobot(winner)) {
-                    throw new IllegalStateException("Robocode returned an unexpected winner for bracket match "
-                            + match.getMatchId() + ": " + winner);
-                }
-                tournament.endMatch(match.getMatchId(), winner);
             }
         );
 
