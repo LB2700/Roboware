@@ -63,6 +63,8 @@ public class CompetitionDriver {
 
     public void start() {
 
+        onBattleCompleted.accept(leaguePhase.toJsonObject());
+
         // create ArrayList of 'Runners' each one a robocode instance with a determined schedule of games
         List<RobocodeEngineRunner> runners = new ArrayList<>();
         int runnerId = 1;
@@ -72,6 +74,7 @@ public class CompetitionDriver {
                 leaguePhase.getScheduledBattles(), BROADCAST_COUNT)) {
             runners.add(new RobocodeEngineRunner(runnerId++, robocodeHome.toFile(), batch));
         }
+
 
         // run each runner in a seperate java process, pass function to respond to games completing
         RobocodeEngineRunner.runAll(runners, 
@@ -88,5 +91,9 @@ public class CompetitionDriver {
     public void setOnBattleCompleted(Consumer<JsonObject> onBattleCompleted) {
         //System.out.println("This function does get clled");
         this.onBattleCompleted = onBattleCompleted;
+    }
+
+    public JsonObject getCurrentState() {
+        return leaguePhase.toJsonObject();
     }
 }
