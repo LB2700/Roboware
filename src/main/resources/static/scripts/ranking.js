@@ -112,18 +112,18 @@ function renderPlayers() {
 
 function updatePlayer(entry) {
 	for (let player of players) {
-			if (entry.id == player.bot) {
-				player.setStats(entry.stats);
-				return;
+		if (entry.robotName == player.bot) {
+			player.setStats(entry.stats);
+			return;
 		}
 	}
-	let newPlayer = new Player("Placeholder", entry.id);
+	let newPlayer = new Player(entry.authorName, entry.robotName);
 	newPlayer.setStats(entry.stats);
 	players.push(newPlayer);
 }
 
 function logReceivedEvent(event) {
-	console.log(event.detail);
+	console.log(event);
 	for (let i = 0; i < event.detail.entries.length; i++) {
 		let entry = event.detail.entries[i];
 		updatePlayer(entry);

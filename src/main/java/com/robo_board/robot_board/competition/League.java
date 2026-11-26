@@ -24,10 +24,20 @@ public class League {
 
     public static League Generate(List<Entry> entries, final int GAME_SIZE, final int GAME_COUNT_PER_ENTRY,
             ScheduledBattle.Settings settings) {
+        return Generate(entries, GAME_SIZE, GAME_COUNT_PER_ENTRY, settings,
+                ScheduledBattle.DEFAULT_TARGET_TPS);
+    }
+
+    public static League Generate(List<Entry> entries, final int GAME_SIZE, final int GAME_COUNT_PER_ENTRY,
+            ScheduledBattle.Settings settings, int targetTps) {
         final int ENTRY_COUNT = entries.size();
 
         League newLeague = new League(entries);
         newLeague.battleSettings = Objects.requireNonNull(settings);
+        if (targetTps < 1) {
+            throw new IllegalArgumentException("Target TPS must be positive");
+        }
+        newLeague.targetTps = targetTps;
         Random random = new Random();
 
         // ensure entries are matched uniformly the whole way up. Only matches entries with less than targetScheduledCount amount of games scheduled, 
@@ -142,7 +152,8 @@ public class League {
                                     ScheduledBattle previousGame = newLeague.games.get(j);
                                     ArrayList<Entry> remainingEntries = new ArrayList<>(previousGame.participants());
                                     Entry entry = remainingEntries.remove(0);
-                                    newLeague.games.set(j, new ScheduledBattle(remainingEntries, previousGame.settings()));
+                                    newLeague.games.set(j, new ScheduledBattle(remainingEntries,
+                                            previousGame.settings(), previousGame.targetTps()));
                                     nextGame.add(entry);
                                 }
                             }
@@ -194,6 +205,7 @@ public class League {
     }
 
     private ScheduledBattle.Settings battleSettings = ScheduledBattle.Settings.DEFAULT;
+    private int targetTps = ScheduledBattle.DEFAULT_TARGET_TPS;
 
     public List<ScheduledBattle> getScheduledBattles() {
         return List.copyOf(games);
@@ -201,6 +213,21 @@ public class League {
 
     List<Entry> getEntries() {
         return entries;
+    }
+
+    /** Returns up to {@code n} entries ordered by descending score. */
+    public List<Entry> getTopN(int n) {
+        if (n < 0) {
+            throw new IllegalArgumentException("n must not be negative: " + n);
+        }
+
+        return entries.stream()
+                .sorted(java.util.Comparator
+                        .comparingInt((Entry entry) -> entry.getStats().getScore())
+                        .reversed()
+                        .thenComparingInt(Entry::getIndex))
+                .limit(n)
+                .toList();
     }
 
     /** Immutable robot-name schedule for callers that only need the matchups. */
@@ -241,6 +268,7 @@ public class League {
         return Json.createObjectBuilder()
                 .add("entries", entrants)
                 .add("games", battles)
+                .add("targetTps", targetTps)
                 .add("battleSettings", Json.createObjectBuilder(battleSettings.toJsonObject())
                         .add("visible", battleSettings.visible()))
                 .build();
@@ -273,7 +301,7 @@ public class League {
     }
 
     private void scheduleGame(List<Entry> entries) {
-        games.add(new ScheduledBattle(entries, battleSettings));
+        games.add(new ScheduledBattle(entries, battleSettings, targetTps));
         //System.out.printf("Scheduling game: %s%n", entries);
     }
 

@@ -114,4 +114,20 @@ class LeagueJsonTests {
 
         assertEquals(75, entry.getStats().getScore());
     }
+
+    @Test
+    void getTopNReturnsHighestScoringEntriesInStableOrder() {
+        Entry first = new Entry("sample.First", 0, "Author 1");
+        Entry second = new Entry("sample.Second", 1, "Author 2");
+        Entry third = new Entry("sample.Third", 2, "Author 3");
+        League league = new League(List.of(first, second, third));
+        league.recordBattleResults(List.of(
+                new BattleResults("sample.First", 1, 50, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+                new BattleResults("sample.Second", 1, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+                new BattleResults("sample.Third", 1, 75, 0, 0, 0, 0, 0, 0, 0, 0, 0)));
+
+        assertEquals(List.of(second, third), league.getTopN(2));
+        assertEquals(List.of(second, third, first), league.getTopN(10));
+        assertThrows(IllegalArgumentException.class, () -> league.getTopN(-1));
+    }
 }

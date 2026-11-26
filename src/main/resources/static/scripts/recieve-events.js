@@ -9,7 +9,7 @@ source.addEventListener("update-competition", event => {
 });
 
 source.onmessage = event => {
-    console.log(JSON.parse(event.data));
+    console.log(JSON.parse(event));
 };
 
 source.onerror = () => {
