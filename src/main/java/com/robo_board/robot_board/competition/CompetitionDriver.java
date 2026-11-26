@@ -87,6 +87,8 @@ public class CompetitionDriver {
             runners.add(new RobocodeEngineRunner(runnerId++, robocodeHome.toFile(), batch));
         }
 
+        onBattleCompleted.accept(toJsonObject());
+
         RobocodeEngineRunner.runAll(runners, battleResults -> {
             leaguePhase.recordBattleResults(battleResults);
             onBattleCompleted.accept(toJsonObject());
