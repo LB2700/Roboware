@@ -20,6 +20,7 @@ import robocode.control.events.BattleAdaptor;
 import robocode.control.events.BattleCompletedEvent;
 
 public class GameDriver {
+    private static final String TARGET_TPS_PROPERTY = "robocode.options.battle.desiredTPS";
 
     private final RobocodeEngine engine;
     private final List<ScheduledBattle> gameSchedule;
@@ -112,6 +113,14 @@ public class GameDriver {
 
     public GameDriver(File robocodeHome, Collection<ScheduledBattle> gameSchedule) {
         this.gameSchedule = List.copyOf(gameSchedule);
+        if (this.gameSchedule.isEmpty()) {
+            throw new IllegalArgumentException("A game driver needs at least one scheduled battle");
+        }
+        int targetTps = this.gameSchedule.getFirst().targetTps();
+        if (this.gameSchedule.stream().anyMatch(game -> game.targetTps() != targetTps)) {
+            throw new IllegalArgumentException("Every battle handled by one engine must use the same target TPS");
+        }
+        System.setProperty(TARGET_TPS_PROPERTY, Integer.toString(targetTps));
         engine = new RobocodeEngine(robocodeHome);
         try {
             engine.addBattleListener(new BattleAdaptor() {

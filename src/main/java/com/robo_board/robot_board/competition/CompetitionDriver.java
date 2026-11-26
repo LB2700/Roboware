@@ -15,7 +15,9 @@ import robocode.control.events.BattleAdaptor;
 import robocode.control.events.BattleCompletedEvent;
 import robocode.control.events.BattleErrorEvent;
 
+import javax.json.Json;
 import javax.json.JsonObject;
+import javax.json.JsonObjectBuilder;
 
 import com.robo_board.robot_board.bracket.Bracket;
 import com.robo_board.robot_board.bracket.BracketMatch;
@@ -24,11 +26,15 @@ import com.robo_board.robot_board.bracket.MatchStatus;
 
 
 public class CompetitionDriver {
+    public static final int LEAGUE_TARGET_TPS = 250;
+    public static final int BRACKET_TARGET_TPS = 150;
+
+    private static final String TARGET_TPS_PROPERTY = "robocode.options.battle.desiredTPS";
 
     private final int BROADCAST_COUNT = 4; // number of parallel league runner JVMs
     private final boolean PRINT_LEAGUE_SCHEDULE = true; 
     private final boolean PRINT_LEAGUE_RESULTS = true; 
-    private final int LEAGUE_GAMES_PER_ENTRY = 4; // how many games should each entry play in the league. The higher this is the more chance of a player to play an opponent more than once 
+    private final int LEAGUE_GAMES_PER_ENTRY = 1; // how many games should each entry play in the league. The higher this is the more chance of a player to play an opponent more than once 
     private final int LEAGUE_GAME_SIZE = 4; // specifies 1v1v1v1 or 4-person-ffa. Make this 2 and the league runs on 1v1s
 
     private static final String SUBMISSION_FOLDER_NAME = "test_submissions";
@@ -37,6 +43,7 @@ public class CompetitionDriver {
     private final Path robocodeHome;
     private final League leaguePhase;
     private final ScheduledBattle.Settings battleSettings;
+    private volatile Bracket tournament;
 
     private Consumer<JsonObject> onBattleCompleted = (JsonObject competitionData) -> {
         System.out.printf("from initial callback: %s %n", competitionData);
@@ -47,13 +54,13 @@ public class CompetitionDriver {
     }
 
     public CompetitionDriver(Path robocodeHome, ScheduledBattle.Settings settings) {
-        
         this.robocodeHome = robocodeHome; 
         this.battleSettings = settings;
 
         this.entries = loadEntries();
 
-        leaguePhase = League.Generate(entries, LEAGUE_GAME_SIZE, LEAGUE_GAMES_PER_ENTRY, settings);
+        leaguePhase = League.Generate(entries, LEAGUE_GAME_SIZE, LEAGUE_GAMES_PER_ENTRY,
+                settings, LEAGUE_TARGET_TPS);
 
         if (PRINT_LEAGUE_SCHEDULE) leaguePhase.showSchedule();
         
@@ -82,7 +89,7 @@ public class CompetitionDriver {
 
         RobocodeEngineRunner.runAll(runners, battleResults -> {
             leaguePhase.recordBattleResults(battleResults);
-            onBattleCompleted.accept(leaguePhase.toJsonObject());
+            onBattleCompleted.accept(toJsonObject());
         });
 
         if (PRINT_LEAGUE_RESULTS) {
@@ -100,10 +107,11 @@ public class CompetitionDriver {
      * @return the completed tournament bracket
      */
     public Bracket runTournamentInSeries() {
-        Bracket tournament = new Bracket(leaguePhase.getTopN(16).stream()
+        tournament = new Bracket(leaguePhase.getTopN(16).stream()
                 .map(Entry::getRobotName)
                 .toArray(String[]::new));
 
+        System.setProperty(TARGET_TPS_PROPERTY, Integer.toString(BRACKET_TARGET_TPS));
         RobocodeEngine engine = new RobocodeEngine(robocodeHome.toFile());
         BattleOutcomeListener outcomeListener = new BattleOutcomeListener();
         engine.addBattleListener(outcomeListener);
@@ -112,15 +120,22 @@ public class CompetitionDriver {
             RobotSpecification[] repository = engine.getLocalRepository();
 
             while (!tournament.isFinished()) {
+
+
                 BracketMatch match = tournament.getMatches().stream()
                         .filter(candidate -> candidate.getMatchStatus() == MatchStatus.READY)
-                        .findFirst()
+                        .min(java.util.Comparator.comparingInt(BracketMatch::getRound)
+                                .thenComparingInt(BracketMatch::getMatchId))
                         .orElseThrow(() -> new IllegalStateException(
                                 "Tournament has not finished, but no bracket match is ready"));
 
                 tournament.startMatch(match.getMatchId());
+
+                onBattleCompleted.accept(toJsonObject());
+
                 ScheduledBattle battle = new ScheduledBattle(
-                        Arrays.asList(match.getRobots()), battleSettings);
+                        Arrays.asList(match.getRobots()), battleSettings, BRACKET_TARGET_TPS);
+                
                 List<BattleResults> results = runBattle(engine, outcomeListener, repository,
                         battle, "bracket match " + match.getMatchId());
                 String winner = normalizeRobotName(results.getFirst().getTeamLeaderName());
@@ -131,10 +146,39 @@ public class CompetitionDriver {
                 tournament.endMatch(match.getMatchId(), winner);
             }
 
+            onBattleCompleted.accept(toJsonObject());
+
             return tournament;
         } finally {
             engine.close();
         }
+    }
+
+    /** Returns a competition snapshot with entries shared above both phases. */
+    public JsonObject toJsonObject() {
+        return buildCompetitionJson(leaguePhase.toJsonObject(), tournament);
+    }
+
+    static JsonObject buildCompetitionJson(JsonObject leagueState, Bracket currentTournament) {
+        JsonObject leagueJson = Json.createObjectBuilder(leagueState)
+                .remove("entries")
+                .add("targetTps", LEAGUE_TARGET_TPS)
+                .build();
+
+        JsonObjectBuilder competitionJson = Json.createObjectBuilder()
+                .add("league", leagueJson);
+        if (currentTournament == null) {
+            competitionJson.addNull("bracket");
+        } else {
+            competitionJson.add("bracket", Json.createObjectBuilder(currentTournament.toJsonObject())
+                    .add("targetTps", BRACKET_TARGET_TPS));
+        }
+        competitionJson.add("entries", leagueState.getJsonArray("entries"));
+        return competitionJson.build();
+    }
+
+    public String toJson() {
+        return toJsonObject().toString();
     }
 
     private static List<BattleResults> runBattle(RobocodeEngine engine,

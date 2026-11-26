@@ -12,7 +12,6 @@ import com.robo_board.robot_board.events.CompetitionEvent;
 
 import javax.json.JsonObject;
 
-
 @Service
 public class CompetitionService {
     private final AtomicBoolean competitionRunning = new AtomicBoolean(false);

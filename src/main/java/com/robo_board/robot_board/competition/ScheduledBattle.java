@@ -20,24 +20,41 @@ import robocode.control.RobotSpecification;
 
 /** A scheduled battle and its rules, shared by the league and its child JVMs. */
 public final class ScheduledBattle {
+    public static final int DEFAULT_TARGET_TPS = 30;
+
     private final List<Entry> participants;
     private final Settings settings;
     private final List<StartingPosition> initialSetups;
+    private final int targetTps;
 
     public ScheduledBattle(List<String> entries, Settings settings, List<StartingPosition> initialSetups) {
-        this(createParticipants(entries), settings, initialSetups);
+        this(entries, settings, initialSetups, DEFAULT_TARGET_TPS);
+    }
+
+    public ScheduledBattle(List<String> entries, Settings settings, List<StartingPosition> initialSetups,
+            int targetTps) {
+        this(createParticipants(entries), settings, initialSetups, targetTps);
     }
 
     public ScheduledBattle(Collection<Entry> entries, Settings settings) {
-        this(entries, settings, List.of());
+        this(entries, settings, DEFAULT_TARGET_TPS);
     }
 
-    private ScheduledBattle(Collection<Entry> entries, Settings settings, List<StartingPosition> initialSetups) {
+    public ScheduledBattle(Collection<Entry> entries, Settings settings, int targetTps) {
+        this(entries, settings, List.of(), targetTps);
+    }
+
+    private ScheduledBattle(Collection<Entry> entries, Settings settings, List<StartingPosition> initialSetups,
+            int targetTps) {
         this.participants = List.copyOf(entries);
         this.settings = Objects.requireNonNull(settings);
         this.initialSetups = List.copyOf(initialSetups);
+        this.targetTps = targetTps;
         if (participants.isEmpty() || participants.stream().anyMatch(entry -> entry.getRobotName().isBlank())) {
             throw new IllegalArgumentException("A scheduled battle needs non-empty robot identifiers");
+        }
+        if (targetTps < 1) {
+            throw new IllegalArgumentException("Target TPS must be positive");
         }
         if (!initialSetups.isEmpty() && initialSetups.size() != participants.size()) {
             throw new IllegalArgumentException("Starting positions must match the number of entries");
@@ -69,6 +86,10 @@ public final class ScheduledBattle {
         return initialSetups;
     }
 
+    public int targetTps() {
+        return targetTps;
+    }
+
     @Override
     public String toString() {
         return entries().toString();
@@ -77,16 +98,21 @@ public final class ScheduledBattle {
     @Override
     public boolean equals(Object other) {
         return other instanceof ScheduledBattle battle && entries().equals(battle.entries())
-                && settings.equals(battle.settings) && initialSetups.equals(battle.initialSetups);
+                && settings.equals(battle.settings) && initialSetups.equals(battle.initialSetups)
+                && targetTps == battle.targetTps;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(entries(), settings, initialSetups);
+        return Objects.hash(entries(), settings, initialSetups, targetTps);
     }
 
     public ScheduledBattle(List<String> entries, Settings settings) {
         this(entries, settings, List.of());
+    }
+
+    public ScheduledBattle(List<String> entries, Settings settings, int targetTps) {
+        this(entries, settings, List.of(), targetTps);
     }
 
     public ScheduledBattle(List<String> entries) {
@@ -102,6 +128,7 @@ public final class ScheduledBattle {
                 .add("entries", robots)
                 .add("battleRules", settings.toJsonObject())
                 .add("visible", settings.visible())
+                .add("targetTps", targetTps)
                 .add("initialSetups", positions)
                 .build();
     }
@@ -126,7 +153,8 @@ public final class ScheduledBattle {
                 ? game.getJsonArray("initialSetups").getValuesAs(JsonObject.class)
                         .stream().map(StartingPosition::fromJson).toList()
                 : List.of();
-        return new ScheduledBattle(entries, settings, positions);
+        return new ScheduledBattle(entries, settings, positions,
+                game.getInt("targetTps", DEFAULT_TARGET_TPS));
     }
 
     /** Robots must be resolved in the same order as entries for initial setups to match. */

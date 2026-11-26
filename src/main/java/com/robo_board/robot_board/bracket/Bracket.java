@@ -5,6 +5,11 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
+import javax.json.Json;
+import javax.json.JsonArrayBuilder;
+import javax.json.JsonObject;
+import javax.json.JsonObjectBuilder;
+
 public class Bracket {
 
     List<BracketMatch> matches;
@@ -73,9 +78,9 @@ public class Bracket {
                 match(28, BracketSide.LOSERS, 5, winner(26), winner(27), false),
                 match(29, BracketSide.LOSERS, 6, winner(28), loser(15), false),
 
-                // Grand final and conditional reset
-                match(30, BracketSide.FINALS, 1, winner(15), winner(29), false),
-                match(31, BracketSide.FINALS, 2, winner(30), loser(30), true));
+                // Global rounds 7 and 8: grand final and conditional reset
+                match(30, BracketSide.FINALS, 7, winner(15), winner(29), false),
+                match(31, BracketSide.FINALS, 8, winner(30), loser(30), true));
     }
 
     private static BracketMatch match(int id, BracketSide side, int round,
@@ -314,12 +319,70 @@ public class Bracket {
         CANCELLED
     }
 
-    // public JSON toJsonObject() {
-    //     JSON json = new JSON();
-    //     // Convert the bracket to a JSON object
-    //     // Implement the logic to convert the bracket to JSON
-    //     return json;
-    // }
+    public JsonObject toJsonObject() {
+        JsonArrayBuilder seedArray = Json.createArrayBuilder();
+        for (String seed : seeds) {
+            seedArray.add(seed);
+        }
+
+        JsonArrayBuilder matchArray = Json.createArrayBuilder();
+        for (BracketMatch match : matches) {
+            JsonObjectBuilder matchJson = Json.createObjectBuilder()
+                    .add("matchId", match.getMatchId())
+                    .add("matchGroup", match.getMatchGroup().name())
+                    .add("round", match.getRound())
+                    .add("matchStatus", match.getMatchStatus().name())
+                    .add("slot1Source", slotSourceToJsonObject(match.getSlot1().getSlotSource()))
+                    .add("slot2Source", slotSourceToJsonObject(match.getSlot2().getSlotSource()))
+                    .add("isReset", match.isReset());
+            addNullableString(matchJson, "winner", match.getWinner());
+            addNullableString(matchJson, "loser", match.getLoser());
+            addNullableString(matchJson, "slot1", match.getSlot1().getRobotName());
+            addNullableString(matchJson, "slot2", match.getSlot2().getRobotName());
+            matchArray.add(matchJson);
+        }
+
+        JsonObjectBuilder bracketJson = Json.createObjectBuilder()
+                .add("seeds", seedArray)
+                .add("matches", matchArray)
+                .add("finished", isFinished());
+        addNullableString(bracketJson, "champion", getChampion());
+        return bracketJson.build();
+    }
+
+    public String toJson() {
+        return toJsonObject().toString();
+    }
+
+    private static JsonObject slotSourceToJsonObject(SlotSources source) {
+        if (source instanceof SlotSources.Seed seed) {
+            return Json.createObjectBuilder()
+                    .add("type", "SEED")
+                    .add("seedNumber", seed.seedNumber())
+                    .build();
+        }
+        if (source instanceof SlotSources.WinnerOf winnerOf) {
+            return Json.createObjectBuilder()
+                    .add("type", "WINNER_OF")
+                    .add("matchId", winnerOf.matchID())
+                    .build();
+        }
+        if (source instanceof SlotSources.LoserOf loserOf) {
+            return Json.createObjectBuilder()
+                    .add("type", "LOSER_OF")
+                    .add("matchId", loserOf.matchID())
+                    .build();
+        }
+        throw new IllegalArgumentException("Unsupported slot source: " + source);
+    }
+
+    private static void addNullableString(JsonObjectBuilder builder, String key, String value) {
+        if (value == null) {
+            builder.addNull(key);
+        } else {
+            builder.add(key, value);
+        }
+    }
 
     // public JSON fromJsonObject(JSON json) {
     //     // Convert a JSON object to a bracket

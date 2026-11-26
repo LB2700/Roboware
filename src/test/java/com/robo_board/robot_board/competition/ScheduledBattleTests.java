@@ -27,7 +27,7 @@ class ScheduledBattleTests {
     void fileRoundTripDeliversEverySettingToBattleSpecification() throws Exception {
         ScheduledBattle original = new ScheduledBattle(List.of("sample.Corners", "sample.Fire"), settings,
                 List.of(new ScheduledBattle.StartingPosition(100.0, 200.0, 90.0),
-                        new ScheduledBattle.StartingPosition(null, null, null)));
+                        new ScheduledBattle.StartingPosition(null, null, null)), 75);
         Path file = directory.resolve("scheduledGames.json");
         Files.writeString(file, Json.createArrayBuilder().add(original.toJsonObject()).build().toString());
 
@@ -42,6 +42,7 @@ class ScheduledBattleTests {
                 () -> assertEquals(700, battle.getInactivityTime()),
                 () -> assertEquals(0.3, battle.getGunCoolingRate()),
                 () -> assertEquals(150, battle.getSentryBorderSize()),
+                () -> assertEquals(75, parsed.targetTps()),
                 () -> assertTrue(battle.getHideEnemyNames()),
                 () -> assertEquals(100.0, battle.getInitialSetups()[0].getX()),
                 () -> assertEquals(200.0, battle.getInitialSetups()[0].getY()),
@@ -81,9 +82,11 @@ class ScheduledBattleTests {
     void leagueAndScheduledBattlePreserveConfiguredRules() {
         League league = League.Generate(List.of(
                 new Entry("sample.Corners", 0, "Author 1"),
-                new Entry("sample.Fire", 1, "Author 2")), 2, 1, settings);
+                new Entry("sample.Fire", 1, "Author 2")), 2, 1, settings, 120);
         assertEquals(1, league.getScheduledBattles().size());
         assertEquals(settings, league.getScheduledBattles().getFirst().settings());
+        assertEquals(120, league.getScheduledBattles().getFirst().targetTps());
+        assertEquals(120, league.toJsonObject().getInt("targetTps"));
         ScheduledBattle game = new ScheduledBattle(List.of(new Entry("sample.Fire", 0, "Sample Author")), settings);
         try (var reader = Json.createReader(new java.io.StringReader(game.toJson()))) {
             assertEquals(game, ScheduledBattle.fromJson(reader.readObject()));
