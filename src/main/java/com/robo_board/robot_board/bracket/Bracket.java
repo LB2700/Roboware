@@ -2,26 +2,119 @@ package com.robo_board.robot_board.bracket;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 public class Bracket {
+
     List<BracketMatch> matches;
     String[] seeds;
-    
+
+    Status status = Status.EMPTY;
+
+    /**
+     * Creates a complete 16-player double-elimination bracket.
+     *
+     * @param inSeeds player names ordered from seed 1 through seed 16
+     */
+    public Bracket(String[] inSeeds) {
+        this(validateAndCopySeeds(inSeeds), createBracket());
+    }
 
     public Bracket(String[] inSeeds, List<BracketMatch> inMatches) {
-        seeds = inSeeds;
-        matches = inMatches;
+        seeds = Objects.requireNonNull(inSeeds, "inSeeds").clone();
+        matches = List.copyOf(Objects.requireNonNull(inMatches, "inMatches"));
         checkWiring();
         fillSeeds();
         updateReadyMatches();
-        createBracket();
     }
 
-    public void createBracket() {
-        // Implement the logic to create the bracket based on the seeds
-        // This is a placeholder implementation and should be replaced with actual logic
-        // For example, you can create matches based on the number of seeds and their positions in the bracket
+    /**
+     * Generates the match graph for a 16-player double-elimination tournament.
+     * Match IDs 1-15 are the winners bracket, 16-29 are the losers bracket,
+     * 30 is the grand final, and 31 is the conditional bracket-reset final.
+     */
+    public static List<BracketMatch> createBracket() {
+        return List.of(
+                // Winners bracket - round 1
+                match(1, BracketSide.WINNERS, 1, seed(1), seed(16), false),
+                match(2, BracketSide.WINNERS, 1, seed(8), seed(9), false),
+                match(3, BracketSide.WINNERS, 1, seed(5), seed(12), false),
+                match(4, BracketSide.WINNERS, 1, seed(4), seed(13), false),
+                match(5, BracketSide.WINNERS, 1, seed(6), seed(11), false),
+                match(6, BracketSide.WINNERS, 1, seed(3), seed(14), false),
+                match(7, BracketSide.WINNERS, 1, seed(7), seed(10), false),
+                match(8, BracketSide.WINNERS, 1, seed(2), seed(15), false),
+
+                // Winners bracket - rounds 2 through 4
+                match(9, BracketSide.WINNERS, 2, winner(1), winner(2), false),
+                match(10, BracketSide.WINNERS, 2, winner(3), winner(4), false),
+                match(11, BracketSide.WINNERS, 2, winner(5), winner(6), false),
+                match(12, BracketSide.WINNERS, 2, winner(7), winner(8), false),
+                match(13, BracketSide.WINNERS, 3, winner(9), winner(10), false),
+                match(14, BracketSide.WINNERS, 3, winner(11), winner(12), false),
+                match(15, BracketSide.WINNERS, 4, winner(13), winner(14), false),
+
+                // Losers bracket - rounds 1 and 2
+                match(16, BracketSide.LOSERS, 1, loser(1), loser(2), false),
+                match(17, BracketSide.LOSERS, 1, loser(3), loser(4), false),
+                match(18, BracketSide.LOSERS, 1, loser(5), loser(6), false),
+                match(19, BracketSide.LOSERS, 1, loser(7), loser(8), false),
+                match(20, BracketSide.LOSERS, 2, winner(16), loser(10), false),
+                match(21, BracketSide.LOSERS, 2, winner(17), loser(9), false),
+                match(22, BracketSide.LOSERS, 2, winner(18), loser(12), false),
+                match(23, BracketSide.LOSERS, 2, winner(19), loser(11), false),
+
+                // Losers bracket - rounds 3 through 6
+                match(24, BracketSide.LOSERS, 3, winner(20), winner(21), false),
+                match(25, BracketSide.LOSERS, 3, winner(22), winner(23), false),
+                match(26, BracketSide.LOSERS, 4, winner(24), loser(14), false),
+                match(27, BracketSide.LOSERS, 4, winner(25), loser(13), false),
+                match(28, BracketSide.LOSERS, 5, winner(26), winner(27), false),
+                match(29, BracketSide.LOSERS, 6, winner(28), loser(15), false),
+
+                // Grand final and conditional reset
+                match(30, BracketSide.FINALS, 1, winner(15), winner(29), false),
+                match(31, BracketSide.FINALS, 2, winner(30), loser(30), true));
+    }
+
+    private static BracketMatch match(int id, BracketSide side, int round,
+            SlotSources slot1, SlotSources slot2, boolean reset) {
+        return new BracketMatch(id, side, round, new Slot(slot1), new Slot(slot2), reset);
+    }
+
+    private static SlotSources seed(int seedNumber) {
+        return new SlotSources.Seed(seedNumber);
+    }
+
+    private static SlotSources winner(int matchId) {
+        return new SlotSources.WinnerOf(matchId);
+    }
+
+    private static SlotSources loser(int matchId) {
+        return new SlotSources.LoserOf(matchId);
+    }
+
+    private static String[] validateAndCopySeeds(String[] inSeeds) {
+        Objects.requireNonNull(inSeeds, "inSeeds");
+        if (inSeeds.length != 16) {
+            throw new IllegalArgumentException(
+                    "A generated double-elimination bracket requires exactly 16 seeds; received "
+                            + inSeeds.length);
+        }
+
+        String[] copy = inSeeds.clone();
+        Set<String> uniqueSeeds = new HashSet<>();
+        for (int i = 0; i < copy.length; i++) {
+            String seed = copy[i];
+            if (seed == null || seed.isBlank()) {
+                throw new IllegalArgumentException("Seed " + (i + 1) + " must have a player name");
+            }
+            if (!uniqueSeeds.add(seed)) {
+                throw new IllegalArgumentException("Duplicate player name in seeds: " + seed);
+            }
+        }
+        return copy;
     }
 
     private void checkWiring() {
@@ -211,6 +304,14 @@ public class Bracket {
 
         }
         return null; // No champion yet
+    }
+
+    private enum Status {
+        EMPTY,
+        READY,
+        IN_PROGRESS,
+        COMPLETED,
+        CANCELLED
     }
 
     // public JSON toJsonObject() {

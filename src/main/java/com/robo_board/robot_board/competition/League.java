@@ -203,6 +203,21 @@ public class League {
         return entries;
     }
 
+    /** Returns up to {@code n} entries ordered by descending score. */
+    public List<Entry> getTopN(int n) {
+        if (n < 0) {
+            throw new IllegalArgumentException("n must not be negative: " + n);
+        }
+
+        return entries.stream()
+                .sorted(java.util.Comparator
+                        .comparingInt((Entry entry) -> entry.getStats().getScore())
+                        .reversed()
+                        .thenComparingInt(Entry::getIndex))
+                .limit(n)
+                .toList();
+    }
+
     /** Immutable robot-name schedule for callers that only need the matchups. */
     public List<List<String>> getSchedule() {
         List<List<String>> schedule = new ArrayList<>();

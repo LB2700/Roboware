@@ -4,19 +4,28 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
 
 import robocode.BattleResults;
+import robocode.control.RobocodeEngine;
+import robocode.control.RobotSpecification;
+import robocode.control.events.BattleAdaptor;
+import robocode.control.events.BattleCompletedEvent;
+import robocode.control.events.BattleErrorEvent;
 
 import javax.json.JsonObject;
+
+import com.robo_board.robot_board.bracket.Bracket;
+import com.robo_board.robot_board.bracket.BracketMatch;
+import com.robo_board.robot_board.bracket.MatchStatus;
 
 
 
 public class CompetitionDriver {
 
-    private final int BROADCAST_COUNT = 1; // how many robocode instances to run in parrallel that 'broadcast' the competition to to the audience
-
+    private final int BROADCAST_COUNT = 4; // number of parallel league runner JVMs
     private final boolean PRINT_LEAGUE_SCHEDULE = true; 
     private final boolean PRINT_LEAGUE_RESULTS = true; 
     private final int LEAGUE_GAMES_PER_ENTRY = 4; // how many games should each entry play in the league. The higher this is the more chance of a player to play an opponent more than once 
@@ -27,6 +36,7 @@ public class CompetitionDriver {
     private final List<Entry> entries;
     private final Path robocodeHome;
     private final League leaguePhase;
+    private final ScheduledBattle.Settings battleSettings;
 
     private Consumer<JsonObject> onBattleCompleted = (JsonObject competitionData) -> {
         System.out.printf("from initial callback: %s %n", competitionData);
@@ -39,13 +49,13 @@ public class CompetitionDriver {
     public CompetitionDriver(Path robocodeHome, ScheduledBattle.Settings settings) {
         
         this.robocodeHome = robocodeHome; 
+        this.battleSettings = settings;
 
         this.entries = loadEntries();
 
         leaguePhase = League.Generate(entries, LEAGUE_GAME_SIZE, LEAGUE_GAMES_PER_ENTRY, settings);
 
         if (PRINT_LEAGUE_SCHEDULE) leaguePhase.showSchedule();
-
         
     }
 
@@ -62,27 +72,139 @@ public class CompetitionDriver {
     }
 
     public void start() {
-
-        // create ArrayList of 'Runners' each one a robocode instance with a determined schedule of games
         List<RobocodeEngineRunner> runners = new ArrayList<>();
         int runnerId = 1;
 
-        // partition the league schedule and instantiate each runner 
         for (List<ScheduledBattle> batch : RobocodeEngineRunner.partitionBattles(
                 leaguePhase.getScheduledBattles(), BROADCAST_COUNT)) {
             runners.add(new RobocodeEngineRunner(runnerId++, robocodeHome.toFile(), batch));
         }
 
-        // run each runner in a seperate java process, pass function to respond to games completing
-        RobocodeEngineRunner.runAll(runners, 
-            (List<BattleResults> battleResults) -> {
-                leaguePhase.recordBattleResults(battleResults);
-                onBattleCompleted.accept(leaguePhase.toJsonObject());
-                //System.out.println(leaguePhase.toJsonObject());
-            }
-        );
+        RobocodeEngineRunner.runAll(runners, battleResults -> {
+            leaguePhase.recordBattleResults(battleResults);
+            onBattleCompleted.accept(leaguePhase.toJsonObject());
+        });
 
-        if (PRINT_LEAGUE_RESULTS) leaguePhase.showStatsTable();
+        if (PRINT_LEAGUE_RESULTS) {
+            leaguePhase.showStatsTable();
+        }
+
+        runTournamentInSeries();
+    }
+
+    /**
+     * Seeds a double-elimination tournament from the completed league and runs
+     * its matches synchronously in one JVM. A single Robocode engine is reused,
+     * and each battle finishes before the next bracket battle is started.
+     *
+     * @return the completed tournament bracket
+     */
+    public Bracket runTournamentInSeries() {
+        Bracket tournament = new Bracket(leaguePhase.getTopN(16).stream()
+                .map(Entry::getRobotName)
+                .toArray(String[]::new));
+
+        RobocodeEngine engine = new RobocodeEngine(robocodeHome.toFile());
+        BattleOutcomeListener outcomeListener = new BattleOutcomeListener();
+        engine.addBattleListener(outcomeListener);
+
+        try {
+            RobotSpecification[] repository = engine.getLocalRepository();
+
+            while (!tournament.isFinished()) {
+                BracketMatch match = tournament.getMatches().stream()
+                        .filter(candidate -> candidate.getMatchStatus() == MatchStatus.READY)
+                        .findFirst()
+                        .orElseThrow(() -> new IllegalStateException(
+                                "Tournament has not finished, but no bracket match is ready"));
+
+                tournament.startMatch(match.getMatchId());
+                ScheduledBattle battle = new ScheduledBattle(
+                        Arrays.asList(match.getRobots()), battleSettings);
+                List<BattleResults> results = runBattle(engine, outcomeListener, repository,
+                        battle, "bracket match " + match.getMatchId());
+                String winner = normalizeRobotName(results.getFirst().getTeamLeaderName());
+                if (!match.hasRobot(winner)) {
+                    throw new IllegalStateException("Robocode returned an unexpected winner for bracket match "
+                            + match.getMatchId() + ": " + winner);
+                }
+                tournament.endMatch(match.getMatchId(), winner);
+            }
+
+            return tournament;
+        } finally {
+            engine.close();
+        }
+    }
+
+    private static List<BattleResults> runBattle(RobocodeEngine engine,
+            BattleOutcomeListener outcomeListener, RobotSpecification[] repository,
+            ScheduledBattle battle, String description) {
+        RobotSpecification[] robots = resolveRobots(repository, battle.entries(), description);
+        outcomeListener.reset();
+        engine.setVisible(battle.settings().visible());
+        engine.runBattle(battle.toBattleSpecification(robots));
+        engine.waitTillBattleOver();
+        return outcomeListener.results(description, robots.length);
+    }
+
+    private static RobotSpecification[] resolveRobots(RobotSpecification[] repository,
+            List<String> robotNames, String description) {
+        RobotSpecification[] robots = new RobotSpecification[robotNames.size()];
+        for (int i = 0; i < robotNames.size(); i++) {
+            String robotName = robotNames.get(i);
+            RobotSpecification[] matches = Arrays.stream(repository)
+                    .filter(robot -> robotName.equals(robot.getClassName()))
+                    .toArray(RobotSpecification[]::new);
+            if (matches.length != 1) {
+                throw new IllegalStateException("Could not resolve robot " + robotName
+                        + " for " + description);
+            }
+            robots[i] = matches[0];
+        }
+        return robots;
+    }
+
+    private static String normalizeRobotName(String robotName) {
+        if (robotName != null && robotName.endsWith("*")) {
+            return robotName.substring(0, robotName.length() - 1);
+        }
+        return robotName;
+    }
+
+    private static final class BattleOutcomeListener extends BattleAdaptor {
+        private volatile BattleResults[] completedResults;
+        private volatile String battleError;
+
+        @Override
+        public void onBattleCompleted(BattleCompletedEvent event) {
+            completedResults = event.getSortedResults().clone();
+        }
+
+        @Override
+        public void onBattleError(BattleErrorEvent event) {
+            battleError = event.getError();
+        }
+
+        void reset() {
+            completedResults = null;
+            battleError = null;
+        }
+
+        List<BattleResults> results(String description, int expectedResultCount) {
+            if (battleError != null) {
+                throw new IllegalStateException(description + " failed: " + battleError);
+            }
+            if (completedResults == null) {
+                throw new IllegalStateException(description + " failed: no completion event was received");
+            }
+            if (completedResults.length != expectedResultCount) {
+                throw new IllegalStateException(description + " returned " + completedResults.length
+                        + " results; expected " + expectedResultCount);
+            }
+            return List.copyOf(Arrays.asList(completedResults));
+        }
+
     }
 
     public void setOnBattleCompleted(Consumer<JsonObject> onBattleCompleted) {
