@@ -1,12 +1,11 @@
 package com.robo_board.robot_board.competition;
 
-import org.springframework.stereotype.Service;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
+import java.util.concurrent.atomic.AtomicReference;
 
 import com.robo_board.robot_board.events.CompetitionEvent;
 
@@ -15,6 +14,8 @@ import javax.json.JsonObject;
 @Service
 public class CompetitionService {
     private final AtomicBoolean competitionRunning = new AtomicBoolean(false);
+    private final AtomicReference<JsonObject> currentState = new AtomicReference<>(
+            javax.json.Json.createObjectBuilder().build());
 
     private final ApplicationEventPublisher eventPublisher;
     
@@ -28,8 +29,10 @@ public class CompetitionService {
 
         CompetitionDriver competition = new CompetitionDriver(
                 Path.of("robocode").toAbsolutePath().normalize());
+        currentState.set(competition.getCurrentState());
 
         competition.setOnBattleCompleted((JsonObject competitionData) -> {
+            currentState.set(competitionData);
             //System.out.printf("from cop service: %s %n", competitionData);
             eventPublisher.publishEvent(
                 new CompetitionEvent("update-competition", competitionData)
@@ -37,5 +40,12 @@ public class CompetitionService {
         });
 
         competition.start();
+    }
+
+    public JsonObject getCurrentState() {
+        if (currentState.get().isEmpty()) {
+            throw new IllegalStateException("No Competition Started");
+        }
+        return currentState.get();
     }
 }
