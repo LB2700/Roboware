@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tournament Bracket</title>
+    <link rel="stylesheet" href="styles/bracket.css">
+</head>
+<body>
+    <main class="bracket-page">
+        <h1>Tournament Bracket</h1>
+        <div class="tournament-bracket" aria-label="Tournament bracket">
+
+            <section class="round">
+                <h2>Start</h2>
+                <div class="matches" id="start">
+                </div>
+            </section>
+
+            <section class="round">
+                <h2>Quarter-finals</h2>
+                <div class="matches" id="quarter-finals">
+                </div>
+            </section>
+
+            <section class="round">
+                <h2>Semi-finals</h2>
+                <div class="matches" id="semi-finals">
+                </div>
+            </section>
+
+            <section class="round">
+                <h2>Final</h2>
+                <div class="matches" id="finals">
+                </div>
+            </section>
+        </div>
+    </main>
+    <script  defer src="scripts/bracket.js"></script>
+    <script defer src="scripts/recieve-events.js"></script>
+</body>
+</html>
