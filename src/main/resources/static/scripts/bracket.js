@@ -1,5 +1,8 @@
 
 const start = document.querySelector("#start");
+const quarterfinals = document.querySelector("#quarter-finals");
+const semifinals = document.querySelector("#semi-finals");
+const finals = document.querySelector("#finals");
 
 function createMatch(player1, player2) {
     const match = document.createElement("article");
@@ -16,15 +19,21 @@ function createMatch(player1, player2) {
 }
 
 function logReceivedEvent(event) {
-	console.log(event);
+
     if (event.detail.bracket == null) {
         return;
     }
+    console.log(event.detail.bracket);
     const matches = event.detail.bracket.matches;
-    for (let i = 0; i < matches[i]; i++) {
-        if (matches[i].round == 1) {
-            const newMatch = createMatch(matches[i].slot1, matches[i].slot2);
-            start.append(newMatch);
+    const stages = [start, quarterfinals, semifinals, finals]
+
+    for (let s = 0; s < stages.length; s++) {
+        stages[s].replaceChildren();
+        for (let i = 0; i < matches.length; i++) {
+            if (matches[i].round == (s + 1) && matches[i].matchGroup == "WINNERS") {
+                const newMatch = createMatch(matches[i].slot1, matches[i].slot2);
+                stages[s].append(newMatch);
+            }
         }
     }
 }
