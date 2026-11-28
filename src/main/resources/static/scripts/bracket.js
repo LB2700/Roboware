@@ -9,10 +9,12 @@ function createMatch(player1, player2) {
     match.className = "match";
     const p1 = document.createElement("div");
     p1.className = "player";
-    p1.textContent = player1;
+    if (!player1) p1.textContent = "TBD";
+    else p1.textContent = player1.split(".").at(-1);
     const p2 = document.createElement("div");
     p2.className = "player";
-    p2.textContent = player2;
+    if (!player2) p2.textContent = "TBD";
+    else p2.textContent = player2.split(".").at(-1);
     match.append(p1);
     match.append(p2);
     return match;
@@ -25,7 +27,7 @@ function logReceivedEvent(event) {
     }
     console.log(event.detail.bracket);
     const matches = event.detail.bracket.matches;
-    const stages = [start, quarterfinals, semifinals, finals]
+    const stages = [start, quarterfinals, semifinals, finals];
 
     for (let s = 0; s < stages.length; s++) {
         stages[s].replaceChildren();

@@ -3,7 +3,7 @@ class Player {
 
 	constructor(inPlayer, inBot) {
 		this.player = inPlayer;
-		this.bot = inBot;
+		this.bot = inBot.split(".").at(-1);
 		this.placement = 1;
 		this.stats = {
 			score: 0,
@@ -112,7 +112,7 @@ function renderPlayers() {
 
 function updatePlayer(entry) {
 	for (let player of players) {
-		if (entry.robotName == player.bot) {
+		if (entry.robotName.split(".").at(-1) == player.bot) {
 			player.setStats(entry.stats);
 			return;
 		}
