@@ -11,7 +11,7 @@
 	<main class="container">
 		<h1 class="page-title">ROBOCODE</h1>
 		<h2 class="subtitle">LEADERBOARD</h2>
-		<table class="demo-table">
+		<table class="demo-table" id="leaderboard"></table>>
 			<thead>
 				<tr>
 					<th>Placement</th>
@@ -24,6 +24,38 @@
 			<tbody id="player-ids">
 			</tbody>
 		</table>
+		<section id="round-results" hidden>
+
+    <h2 class="results-title">ROUND COMPLETE!</h2>
+
+    <h3 id="round-name"></h3>
+
+    <div class="podium">
+
+        <div class="winner">
+            <h3 id="second-name"></h3>
+            <p id="second-score"></p>
+            <div class="podium-block second">2</div>
+        </div>
+
+        <div class="winner">
+            <span>👑</span>
+            <h3 id="first-name"></h3>
+            <p id="first-score"></p>
+            <div class="podium-block first">1</div>
+        </div>
+
+        <div class="winner">
+            <h3 id="third-name"></h3>
+            <p id="third-score"></p>
+            <div class="podium-block third">3</div>
+        </div>
+
+    </div>
+
+    <p>Waiting for next round...</p>
+
+</section>
 	</main>
     
 	<script  defer src="scripts/ranking.js"></script>
