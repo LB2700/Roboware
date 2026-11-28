@@ -2,14 +2,29 @@
 	box-sizing: border-box;
 }
 
+
 body {
-	margin: 0;
-	padding: 25px;
-	background-color: #d2d2d2;
-	font-family: "IBM Plex Sans", Arial, sans-serif;
-	font-weight: 400;
-	font-size: 14px;
+    margin: 0;
+    padding: 25px;
+    min-height: 100vh;
+    font-family: "IBM Plex Sans", Arial, sans-serif;
+    font-weight: 400;
+    font-size: 14px;
+    color: white;
+
+    background-color: #30358d;
+
+    background-image: conic-gradient(
+        #ffffff08 25%,
+        #15165e30 0 50%,
+        #ffffff10 0 75%,
+        transparent 0
+    );
+
+    background-size: 80px 80px;
+    background-attachment: fixed;
 }
+
 
 .container {
 	width: min(850px, calc(100% - 24px));
@@ -17,19 +32,21 @@ body {
 }
 
 .demo-table {
-	border-spacing: 0 10px;
-	width: 100%;
+    border-spacing: 0 10px;
+    width: 100%;
 }
 
 .demo-table thead th {
-	text-align: left;
-	padding: 10px 8px;
-	font-weight: 600;
+    text-align: left;
+    padding: 10px 8px;
+    font-weight: 600;
+    color: white;
 }
 
 .demo-table tbody td {
-	padding: 10px 8px;
-	background-color: white;
+    padding: 10px 8px;
+    background-color: white;
+    color: #171447;
 }
 
 .demo-table tbody td:first-child,
@@ -163,10 +180,48 @@ body {
 }
 
 .battle-display-box {
-            width: 200px;
-            height: 100px;
-            border: 2px solid #000;
-            background-color: #f0f0f0;
-            padding: 10px;
-            color: green;
-        }
+    width: 200px;
+    height: 100px;
+    border: 2px solid #000;
+    background-color: #ffde59;
+    padding: 10px;
+    color: #171447;
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+
+    background-image:
+        radial-gradient(2px 2px at 20px 30px, white, transparent),
+        radial-gradient(2px 2px at 80px 120px, white, transparent),
+        radial-gradient(1px 1px at 150px 60px, white, transparent),
+        radial-gradient(3px 3px at 200px 180px, #d9c8ff, transparent),
+        radial-gradient(1px 1px at 250px 90px, white, transparent);
+
+    background-size: 280px 250px;
+    opacity: 0.8;
+    z-index: -1;
+}
+
+body {
+    isolation: isolate;
+}
+.page-title {
+    font-family: "Press Start 2P", monospace;
+    font-size: 36px;
+    text-align: center;
+    color: white;
+    margin-top: 60px;
+    text-shadow: 5px 5px #171447;
+}
+
+.subtitle {
+    font-family: "Press Start 2P", monospace;
+    font-size: 16px;
+    text-align: center;
+    color: #d8b4fe;
+    margin-bottom: 50px;
+}
