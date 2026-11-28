@@ -1,15 +1,30 @@
-
 const source = new EventSource("/events");
+let podiumTimer;
 
 source.addEventListener("update-competition", event => {
+
     const competitionData = JSON.parse(event.data);
+
+    console.log("Competition data:", competitionData);
+    console.log("First game:", competitionData.games[0]);
+
+    console.table(competitionData.games[0].entries);
+
     window.dispatchEvent(new CustomEvent("competition-update", {
         detail: competitionData
     }));
+    showPodium("Battle Complete");
+    clearTimeout(podiumTimer);
+
+podiumTimer = setTimeout(() => {
+    showLeaderboard();
+}, 5000);
 });
 
 source.onmessage = event => {
-    console.log(JSON.parse(event.data));
+    const messageData = JSON.parse(event.data);
+
+    console.log("Message data:", messageData);
 };
 
 source.onerror = () => {
@@ -17,5 +32,3 @@ source.onerror = () => {
 };
 
 console.log("connected", source);
-
-

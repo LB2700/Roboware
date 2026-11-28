@@ -11,7 +11,7 @@
 	<main class="container">
 		<h1 class="page-title">ROBOCODE</h1>
 		<h2 class="subtitle">LEADERBOARD</h2>
-		<table class="demo-table" id="leaderboard"></table>>
+		<table class="demo-table" id="leaderboard">
 			<thead>
 				<tr>
 					<th>Placement</th>
@@ -29,6 +29,7 @@
     <h2 class="results-title">ROUND COMPLETE!</h2>
 
     <h3 id="round-name"></h3>
+	<p class="podium-label">Winners</p>
 
     <div class="podium">
 
@@ -39,7 +40,7 @@
         </div>
 
         <div class="winner">
-            <span>👑</span>
+            <span>slay</span>
             <h3 id="first-name"></h3>
             <p id="first-score"></p>
             <div class="podium-block first">1</div>
@@ -58,8 +59,9 @@
 </section>
 	</main>
     
-	<script  defer src="scripts/ranking.js"></script>
-  	<script defer src="scripts/recieve-events.js"></script>
+	<script defer src="scripts/ranking.js"></script>
+	<script defer src="scripts/podium.js"></script>
+	<script defer src="scripts/recieve-events.js"></script>
 	
 </body>
 </html>
